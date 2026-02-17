@@ -22,7 +22,7 @@ Aplicación de gestión de tareas estilo Kanban con tableros, columnas y tarjeta
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/TU_USUARIO/stward-task.git
+git clone https://github.com/cesarsanch3101/stward-task.git
 cd stward-task
 
 # 2. Crear archivo de variables de entorno
