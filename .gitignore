@@ -1,0 +1,28 @@
+# Environment
+.env
+*.pyc
+__pycache__/
+*.pyo
+
+# Django
+backend/staticfiles/
+backend/db.sqlite3
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Node
+node_modules/
+.next/
+
+# Claude Code
+.claude/
