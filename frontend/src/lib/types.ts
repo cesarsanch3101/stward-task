@@ -69,6 +69,13 @@ export interface Workspace {
   updated_at: string;
 }
 
+// ─── Paginated response ───
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  count: number;
+}
+
 // ─── Auth types ───
 
 export interface TokenPair {

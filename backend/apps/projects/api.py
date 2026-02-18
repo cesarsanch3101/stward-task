@@ -6,6 +6,7 @@ All endpoints require JWT authentication.
 from uuid import UUID
 
 from ninja import Router
+from ninja.pagination import PageNumberPagination, paginate
 
 from apps.accounts.auth import jwt_auth
 
@@ -34,6 +35,7 @@ router = Router(auth=jwt_auth)
 # Workspaces
 # ─────────────────────────────────────────────────
 @router.get("/workspaces", response=list[WorkspaceWithBoardsSchema], tags=["workspaces"])
+@paginate(PageNumberPagination, page_size=20)
 def list_workspaces(request):
     return WorkspaceService.list_for_user(request.auth)
 
@@ -66,6 +68,7 @@ def delete_workspace(request, workspace_id: UUID):
 # Boards
 # ─────────────────────────────────────────────────
 @router.get("/boards", response=list[BoardSchema], tags=["boards"])
+@paginate(PageNumberPagination, page_size=20)
 def list_boards(request):
     return BoardService.list_for_user(request.auth)
 
@@ -124,7 +127,7 @@ def create_column(request, board_id: UUID, payload: ColumnCreateSchema):
 # ─────────────────────────────────────────────────
 @router.post("/tasks", response={201: TaskSchema}, tags=["tasks"])
 def create_task(request, payload: TaskCreateSchema):
-    data = payload.dict(exclude={"column_id"})
+    data = payload.dict(exclude={"column_id"}, exclude_none=True)
     task = TaskService.create(request.auth, column_id=payload.column_id, **data)
     return 201, task
 

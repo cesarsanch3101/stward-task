@@ -38,3 +38,25 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # Database — enforce SSL in production
 # ──────────────────────────────────────────────
 DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}  # noqa: F405
+
+# ──────────────────────────────────────────────
+# Structured logging — JSON in production
+# ──────────────────────────────────────────────
+LOGGING["root"]["handlers"] = ["json_console"]  # noqa: F405
+LOGGING["loggers"]["django"]["handlers"] = ["json_console"]  # noqa: F405
+LOGGING["loggers"]["apps"]["handlers"] = ["json_console"]  # noqa: F405
+
+# ──────────────────────────────────────────────
+# Content Security Policy
+# ──────────────────────────────────────────────
+CSP_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "font-src 'self'; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)

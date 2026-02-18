@@ -1,5 +1,13 @@
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth";
-import { Board, BoardSummary, Task, TokenPair, User, Workspace } from "./types";
+import {
+  Board,
+  BoardSummary,
+  PaginatedResponse,
+  Task,
+  TokenPair,
+  User,
+  Workspace,
+} from "./types";
 
 // Server-side (SSR) uses the Docker internal network; client-side uses the public URL
 const API_BASE_SERVER = process.env.API_URL_INTERNAL ?? "http://backend:8000/api";
@@ -139,7 +147,7 @@ export function getMe() {
 
 // ─── Workspaces ──────────────────────────────────
 export function getWorkspaces() {
-  return fetcher<Workspace[]>("/workspaces");
+  return fetcher<PaginatedResponse<Workspace>>("/workspaces");
 }
 
 export function createWorkspace(data: { name: string; description?: string }) {
@@ -165,7 +173,7 @@ export function deleteWorkspace(workspaceId: string) {
 
 // ─── Boards ──────────────────────────────────────
 export function getBoards() {
-  return fetcher<BoardSummary[]>("/boards");
+  return fetcher<PaginatedResponse<BoardSummary>>("/boards");
 }
 
 export function getBoard(id: string) {

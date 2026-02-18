@@ -9,7 +9,8 @@ import { SidebarSkeleton } from "@/components/sidebar/sidebar-skeleton";
 
 export default function Home() {
   const router = useRouter();
-  const { data: workspaces, isLoading, isError } = useWorkspaces();
+  const { data, isLoading, isError } = useWorkspaces();
+  const workspaces = data?.items;
 
   useEffect(() => {
     if (!isAuthenticated()) {

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
 import { workspaceKeys } from "./use-workspaces";
-import type { BoardSummary, Workspace } from "@/lib/types";
+import type { BoardSummary, PaginatedResponse, Workspace } from "@/lib/types";
 
 export const boardKeys = {
   all: ["boards"] as const,
@@ -33,12 +33,19 @@ export function useCreateBoard() {
         created_at: board.created_at,
         updated_at: board.updated_at,
       };
-      queryClient.setQueryData<Workspace[]>(workspaceKeys.all, (old) =>
-        old?.map((ws) =>
-          ws.id === board.workspace_id
-            ? { ...ws, boards: [...ws.boards, summary] }
-            : ws
-        )
+      queryClient.setQueryData<PaginatedResponse<Workspace>>(
+        workspaceKeys.all,
+        (old) =>
+          old
+            ? {
+                ...old,
+                items: old.items.map((ws) =>
+                  ws.id === board.workspace_id
+                    ? { ...ws, boards: [...ws.boards, summary] }
+                    : ws
+                ),
+              }
+            : undefined
       );
       queryClient.setQueryData(boardKeys.detail(board.id), board);
       toast.success(`Tablero "${board.name}" creado`);
@@ -61,13 +68,20 @@ export function useUpdateBoard() {
       data: { name?: string; description?: string };
     }) => api.updateBoard(id, data),
     onSuccess: (updated) => {
-      queryClient.setQueryData<Workspace[]>(workspaceKeys.all, (old) =>
-        old?.map((ws) => ({
-          ...ws,
-          boards: ws.boards.map((b) =>
-            b.id === updated.id ? { ...b, ...updated } : b
-          ),
-        }))
+      queryClient.setQueryData<PaginatedResponse<Workspace>>(
+        workspaceKeys.all,
+        (old) =>
+          old
+            ? {
+                ...old,
+                items: old.items.map((ws) => ({
+                  ...ws,
+                  boards: ws.boards.map((b) =>
+                    b.id === updated.id ? { ...b, ...updated } : b
+                  ),
+                })),
+              }
+            : undefined
       );
       toast.success("Tablero actualizado");
     },
@@ -83,11 +97,18 @@ export function useDeleteBoard() {
   return useMutation({
     mutationFn: api.deleteBoard,
     onSuccess: (_, deletedId) => {
-      queryClient.setQueryData<Workspace[]>(workspaceKeys.all, (old) =>
-        old?.map((ws) => ({
-          ...ws,
-          boards: ws.boards.filter((b) => b.id !== deletedId),
-        }))
+      queryClient.setQueryData<PaginatedResponse<Workspace>>(
+        workspaceKeys.all,
+        (old) =>
+          old
+            ? {
+                ...old,
+                items: old.items.map((ws) => ({
+                  ...ws,
+                  boards: ws.boards.filter((b) => b.id !== deletedId),
+                })),
+              }
+            : undefined
       );
       queryClient.removeQueries({ queryKey: boardKeys.detail(deletedId) });
       toast.success("Tablero eliminado");

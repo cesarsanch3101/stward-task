@@ -10,8 +10,9 @@ import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { SidebarSkeleton } from "./sidebar-skeleton";
 
 export function AppSidebar() {
-  const { data: workspaces, isLoading } = useWorkspaces();
+  const { data, isLoading } = useWorkspaces();
   const pathname = usePathname();
+  const workspaces = data?.items;
 
   if (isLoading || !workspaces) return <SidebarSkeleton />;
 

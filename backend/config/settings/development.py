@@ -18,3 +18,13 @@ CORS_ALLOW_CREDENTIALS = True
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+
+# ──────────────────────────────────────────────
+# Rate limiting — disabled in dev
+# ──────────────────────────────────────────────
+RATE_LIMIT_ENABLED = False
+
+# ──────────────────────────────────────────────
+# CSP — disabled in dev (avoids blocking hot reload)
+# ──────────────────────────────────────────────
+CSP_POLICY = None

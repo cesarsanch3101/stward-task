@@ -42,6 +42,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "config.middleware.CSPMiddleware",
+    "config.ratelimit.RateLimitMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -84,6 +86,25 @@ DATABASES = {
         "CONN_MAX_AGE": 600,
     }
 }
+
+# ──────────────────────────────────────────────
+# Cache — used for rate limiting
+# ──────────────────────────────────────────────
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "stward-ratelimit",
+    }
+}
+
+# ──────────────────────────────────────────────
+# Rate limiting
+# ──────────────────────────────────────────────
+RATE_LIMIT_ENABLED = True
+RATE_LIMIT_REQUESTS = 100
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_AUTH_REQUESTS = 10
+RATE_LIMIT_AUTH_WINDOW = 60
 
 # ──────────────────────────────────────────────
 # Custom user model
@@ -142,11 +163,24 @@ LOGGING = {
             "format": "[{asctime}] {levelname} {name} {message}",
             "style": "{",
         },
+        "json": {
+            "()": "pythonjsonlogger.json.JsonFormatter",
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            "rename_fields": {
+                "asctime": "timestamp",
+                "levelname": "level",
+                "name": "logger",
+            },
+        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+        },
+        "json_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
         },
     },
     "root": {
