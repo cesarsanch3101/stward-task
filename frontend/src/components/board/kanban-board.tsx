@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -13,24 +13,31 @@ import {
   closestCorners,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { AnimatePresence, motion } from "framer-motion";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
-import { moveTask } from "@/lib/api";
+import { useMoveTask } from "@/lib/hooks/use-tasks";
 import type { Board, Column, Task } from "@/lib/types";
 
 interface Props {
-  initialBoard: Board;
+  board: Board;
 }
 
-export function KanbanBoard({ initialBoard }: Props) {
-  const [columns, setColumns] = useState<Column[]>(initialBoard.columns);
+export function KanbanBoard({ board }: Props) {
+  const [columns, setColumns] = useState<Column[]>(board.columns);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const moveTaskMutation = useMoveTask(board.id);
+
+  // Sync columns when board data changes from query cache
+  useEffect(() => {
+    setColumns(board.columns);
+  }, [board.columns]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // ── Helpers ────────────────────────────────────
   const findColumnByTaskId = useCallback(
     (taskId: string): Column | undefined =>
       columns.find((col) => col.tasks.some((t) => t.id === taskId)),
@@ -44,36 +51,6 @@ export function KanbanBoard({ initialBoard }: Props) {
     return null;
   };
 
-  // ── CRUD callbacks ─────────────────────────────
-  const handleTaskCreated = useCallback((task: Task) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === task.column_id
-          ? { ...col, tasks: [...col.tasks, task] }
-          : col
-      )
-    );
-  }, []);
-
-  const handleTaskUpdated = useCallback((updated: Task) => {
-    setColumns((prev) =>
-      prev.map((col) => ({
-        ...col,
-        tasks: col.tasks.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)),
-      }))
-    );
-  }, []);
-
-  const handleTaskDeleted = useCallback((taskId: string) => {
-    setColumns((prev) =>
-      prev.map((col) => ({
-        ...col,
-        tasks: col.tasks.filter((t) => t.id !== taskId),
-      }))
-    );
-  }, []);
-
-  // ── Drag start ─────────────────────────────────
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const col = findColumnByTaskId(active.id as string);
@@ -81,7 +58,6 @@ export function KanbanBoard({ initialBoard }: Props) {
     setActiveTask(task ?? null);
   };
 
-  // ── Drag over (live preview while dragging) ────
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -90,7 +66,6 @@ export function KanbanBoard({ initialBoard }: Props) {
     const overId = over.id as string;
 
     const sourceCol = findColumnByTaskId(activeId);
-
     const overColumnId = extractColumnId(overId);
     const targetCol = overColumnId
       ? columns.find((c) => c.id === overColumnId)
@@ -116,7 +91,6 @@ export function KanbanBoard({ initialBoard }: Props) {
     });
   };
 
-  // ── Drag end (commit reorder + API call) ───────
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
@@ -151,22 +125,14 @@ export function KanbanBoard({ initialBoard }: Props) {
     if (!finalCol) return;
     const finalOrder = finalCol.tasks.findIndex((t) => t.id === activeId);
 
-    moveTask(activeId, finalCol.id, finalOrder)
-      .then((updatedTask) => {
-        // Update task with server response (auto-dates, progress, etc.)
-        setColumns((prev) =>
-          prev.map((col) => ({
-            ...col,
-            tasks: col.tasks.map((t) =>
-              t.id === updatedTask.id ? { ...t, ...updatedTask } : t
-            ),
-          }))
-        );
-      })
-      .catch((err) => {
-        console.error("Error al mover tarea:", err);
-        setColumns(initialBoard.columns);
-      });
+    moveTaskMutation.mutate(
+      { taskId: activeId, columnId: finalCol.id, newOrder: finalOrder },
+      {
+        onError: () => {
+          setColumns(board.columns);
+        },
+      }
+    );
   };
 
   return (
@@ -178,24 +144,25 @@ export function KanbanBoard({ initialBoard }: Props) {
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-6 p-6 overflow-x-auto flex-1">
-        {columns.map((column) => (
-          <KanbanColumn
-            key={column.id}
-            column={column}
-            onTaskCreated={handleTaskCreated}
-            onTaskUpdated={handleTaskUpdated}
-            onTaskDeleted={handleTaskDeleted}
-          />
-        ))}
+        <AnimatePresence mode="popLayout">
+          {columns.map((column) => (
+            <motion.div
+              key={column.id}
+              layout
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <KanbanColumn column={column} boardId={board.id} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       <DragOverlay>
         {activeTask ? (
-          <TaskCard
-            task={activeTask}
-            onTaskUpdated={handleTaskUpdated}
-            onTaskDeleted={handleTaskDeleted}
-          />
+          <TaskCard task={activeTask} boardId={board.id} isOverlay />
         ) : null}
       </DragOverlay>
     </DndContext>

@@ -1,0 +1,122 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import * as api from "@/lib/api";
+import { boardKeys } from "./use-board";
+import type { Board, Column } from "@/lib/types";
+
+function updateBoardColumns(
+  board: Board | undefined,
+  updater: (columns: Column[]) => Column[]
+): Board | undefined {
+  if (!board) return board;
+  return { ...board, columns: updater(board.columns) };
+}
+
+export function useCreateTask(boardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.createTask,
+    onSuccess: (task) => {
+      queryClient.setQueryData<Board>(boardKeys.detail(boardId), (old) =>
+        updateBoardColumns(old, (cols) =>
+          cols.map((col) =>
+            col.id === task.column_id
+              ? { ...col, tasks: [...col.tasks, task] }
+              : col
+          )
+        )
+      );
+      toast.success("Tarea creada");
+    },
+    onError: () => {
+      toast.error("Error al crear tarea");
+    },
+  });
+}
+
+export function useUpdateTask(boardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof api.updateTask>[1];
+    }) => api.updateTask(id, data),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<Board>(boardKeys.detail(boardId), (old) =>
+        updateBoardColumns(old, (cols) =>
+          cols.map((col) => ({
+            ...col,
+            tasks: col.tasks.map((t) =>
+              t.id === updated.id ? { ...t, ...updated } : t
+            ),
+          }))
+        )
+      );
+      toast.success("Tarea actualizada");
+    },
+    onError: () => {
+      toast.error("Error al actualizar tarea");
+    },
+  });
+}
+
+export function useDeleteTask(boardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.deleteTask,
+    onSuccess: (_, deletedId) => {
+      queryClient.setQueryData<Board>(boardKeys.detail(boardId), (old) =>
+        updateBoardColumns(old, (cols) =>
+          cols.map((col) => ({
+            ...col,
+            tasks: col.tasks.filter((t) => t.id !== deletedId),
+          }))
+        )
+      );
+      toast.success("Tarea eliminada");
+    },
+    onError: () => {
+      toast.error("Error al eliminar tarea");
+    },
+  });
+}
+
+export function useMoveTask(boardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      columnId,
+      newOrder,
+    }: {
+      taskId: string;
+      columnId: string;
+      newOrder: number;
+    }) => api.moveTask(taskId, columnId, newOrder),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<Board>(boardKeys.detail(boardId), (old) =>
+        updateBoardColumns(old, (cols) =>
+          cols.map((col) => ({
+            ...col,
+            tasks: col.tasks.map((t) =>
+              t.id === updated.id ? { ...t, ...updated } : t
+            ),
+          }))
+        )
+      );
+    },
+    onError: () => {
+      toast.error("Error al mover tarea");
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+    },
+  });
+}

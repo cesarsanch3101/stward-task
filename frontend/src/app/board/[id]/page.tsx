@@ -1,71 +1,95 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard, getWorkspaces } from "@/lib/api";
+import { useEffect } from "react";
 import { isAuthenticated } from "@/lib/auth";
+import { useBoard } from "@/lib/hooks/use-board";
+import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { KanbanBoard } from "@/components/board/kanban-board";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { Board, Workspace } from "@/lib/types";
+import { BoardSkeleton } from "@/components/board/board-skeleton";
+import { SidebarSkeleton } from "@/components/sidebar/sidebar-skeleton";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 export default function BoardPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const [board, setBoard] = useState<Board | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (!isAuthenticated()) router.push("/login");
+  }, [router]);
+
+  const board = useBoard(params.id);
+  const workspaces = useWorkspaces();
+
+  // Loading state
+  if (board.isLoading || workspaces.isLoading) {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <SidebarSkeleton />
+        <main className="flex-1 overflow-auto">
+          <div className="h-full bg-slate-50 flex flex-col">
+            <header className="border-b bg-white px-6 py-4 shrink-0">
+              <div className="h-6 w-48 bg-slate-200 rounded animate-pulse" />
+            </header>
+            <BoardSkeleton />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error state
+  if (board.isError) {
+    const is401 =
+      board.error instanceof Error && board.error.message.includes("401");
+    if (is401) {
       router.push("/login");
-      return;
+      return null;
     }
 
-    Promise.all([getBoard(params.id), getWorkspaces()])
-      .then(([boardData, wsData]) => {
-        setBoard(boardData);
-        setWorkspaces(wsData);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err instanceof Error && err.message.includes("401")) {
-          router.push("/login");
-        } else {
-          setError("Error al cargar el tablero.");
-          setLoading(false);
-        }
-      });
-  }, [params.id, router]);
-
-  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-muted-foreground">Cargando tablero...</p>
+        <div className="text-center space-y-4">
+          <p className="text-red-500">Error al cargar el tablero.</p>
+          <Button
+            variant="outline"
+            onClick={() => board.refetch()}
+            className="gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reintentar
+          </Button>
+        </div>
       </div>
     );
   }
 
-  if (error || !board) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p className="text-red-500">{error || "Tablero no encontrado."}</p>
-      </div>
-    );
-  }
+  if (!board.data) return null;
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <AppSidebar initialWorkspaces={workspaces} />
+      <AppSidebar />
       <main className="flex-1 overflow-auto">
         <div className="h-full bg-slate-50 flex flex-col">
           <header className="border-b bg-white px-6 py-4 flex items-center gap-4 shrink-0">
-            <h1 className="text-lg font-bold text-slate-900">{board.name}</h1>
-            {board.description && (
-              <p className="text-sm text-slate-500">{board.description}</p>
+            <h1 className="text-lg font-bold text-slate-900">
+              {board.data.name}
+            </h1>
+            {board.data.description && (
+              <p className="text-sm text-slate-500">
+                {board.data.description}
+              </p>
+            )}
+            {board.isFetching && !board.isLoading && (
+              <RefreshCw className="h-4 w-4 text-slate-400 animate-spin ml-auto" />
             )}
           </header>
-          <KanbanBoard initialBoard={board} />
+          <ErrorBoundary>
+            <KanbanBoard board={board.data} />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

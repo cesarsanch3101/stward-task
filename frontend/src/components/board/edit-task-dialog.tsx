@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
   DialogContent,
@@ -29,66 +31,74 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateTask, deleteTask } from "@/lib/api";
+import { useUpdateTask, useDeleteTask } from "@/lib/hooks/use-tasks";
+import { taskSchema, type TaskFormData } from "@/lib/schemas";
 import type { Task } from "@/lib/types";
 
 interface Props {
   task: Task;
+  boardId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTaskUpdated: (task: Task) => void;
-  onTaskDeleted: (taskId: string) => void;
 }
 
-export function EditTaskDialog({
-  task,
-  open,
-  onOpenChange,
-  onTaskUpdated,
-  onTaskDeleted,
-}: Props) {
-  const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description);
-  const [priority, setPriority] = useState(task.priority);
-  const [assigneeName, setAssigneeName] = useState(task.assignee_name ?? "");
-  const [startDate, setStartDate] = useState(task.start_date ?? "");
-  const [endDate, setEndDate] = useState(task.end_date ?? "");
-  const [progress, setProgress] = useState(task.progress);
+export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
+  const updateMutation = useUpdateTask(boardId);
+  const deleteMutation = useDeleteTask(boardId);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const form = useForm<TaskFormData>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      assignee_name: task.assignee_name ?? "",
+      start_date: task.start_date ?? "",
+      end_date: task.end_date ?? "",
+      progress: task.progress,
+    },
+  });
 
-    setLoading(true);
-    try {
-      const updated = await updateTask(task.id, {
-        title: title.trim(),
-        description,
-        priority,
-        assignee_name: assigneeName || undefined,
-        start_date: startDate || null,
-        end_date: endDate || null,
-        progress,
-      });
-      onTaskUpdated(updated);
-      onOpenChange(false);
-    } catch (err) {
-      console.error("Error al actualizar tarea:", err);
-    } finally {
-      setLoading(false);
-    }
+  // Sync form when task prop changes (fixes stale state bug F13)
+  useEffect(() => {
+    form.reset({
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      assignee_name: task.assignee_name ?? "",
+      start_date: task.start_date ?? "",
+      end_date: task.end_date ?? "",
+      progress: task.progress,
+    });
+  }, [task, form]);
+
+  const onSubmit = form.handleSubmit((data) => {
+    updateMutation.mutate(
+      {
+        id: task.id,
+        data: {
+          title: data.title,
+          description: data.description,
+          priority: data.priority,
+          assignee_name: data.assignee_name || undefined,
+          start_date: data.start_date || null,
+          end_date: data.end_date || null,
+          progress: data.progress,
+        },
+      },
+      {
+        onSuccess: () => onOpenChange(false),
+      }
+    );
+  });
+
+  const handleDelete = () => {
+    deleteMutation.mutate(task.id, {
+      onSuccess: () => onOpenChange(false),
+    });
   };
 
-  const handleDelete = async () => {
-    try {
-      await deleteTask(task.id);
-      onTaskDeleted(task.id);
-      onOpenChange(false);
-    } catch (err) {
-      console.error("Error al eliminar tarea:", err);
-    }
-  };
+  const progress = form.watch("progress");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -96,22 +106,23 @@ export function EditTaskDialog({
         <DialogHeader>
           <DialogTitle>Editar tarea</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSave} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-title">Título</Label>
             <Input
               id="edit-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              {...form.register("title")}
               autoFocus
             />
+            {form.formState.errors.title && (
+              <p className="text-xs text-red-500">{form.formState.errors.title.message}</p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-description">Descripción</Label>
             <Textarea
               id="edit-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...form.register("description")}
               rows={3}
             />
           </div>
@@ -119,25 +130,30 @@ export function EditTaskDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label>Prioridad</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin prioridad</SelectItem>
-                  <SelectItem value="low">Baja</SelectItem>
-                  <SelectItem value="medium">Media</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                  <SelectItem value="urgent">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin prioridad</SelectItem>
+                      <SelectItem value="low">Baja</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="edit-assignee">Persona asignada</Label>
               <Input
                 id="edit-assignee"
-                value={assigneeName}
-                onChange={(e) => setAssigneeName(e.target.value)}
+                {...form.register("assignee_name")}
                 placeholder="Nombre completo"
               />
             </div>
@@ -149,8 +165,7 @@ export function EditTaskDialog({
               <Input
                 id="edit-start-date"
                 type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                {...form.register("start_date")}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -158,9 +173,11 @@ export function EditTaskDialog({
               <Input
                 id="edit-end-date"
                 type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                {...form.register("end_date")}
               />
+              {form.formState.errors.end_date && (
+                <p className="text-xs text-red-500">{form.formState.errors.end_date.message}</p>
+              )}
             </div>
           </div>
 
@@ -174,8 +191,7 @@ export function EditTaskDialog({
               min={0}
               max={100}
               step={5}
-              value={progress}
-              onChange={(e) => setProgress(Number(e.target.value))}
+              {...form.register("progress", { valueAsNumber: true })}
               title={`Progreso: ${progress}%`}
               className="w-full accent-blue-500"
             />
@@ -197,14 +213,18 @@ export function EditTaskDialog({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                    Eliminar
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    disabled={deleteMutation.isPending}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button type="submit" disabled={loading || !title.trim()}>
-              {loading ? "Guardando..." : "Guardar cambios"}
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
           </div>
         </form>

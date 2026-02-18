@@ -1,50 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
-import { login, register } from "@/lib/api";
-import { setTokens } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLogin, useRegister } from "@/lib/hooks/use-auth";
+import {
+  loginSchema,
+  registerSchema,
+  type LoginFormData,
+  type RegisterFormData,
+} from "@/lib/schemas";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
 
-    try {
-      const tokens = isRegister
-        ? await register({ email, password, first_name: firstName, last_name: lastName })
-        : await login({ email, password });
+  const loginForm = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
-      setTokens(tokens);
-      router.push("/");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Error inesperado";
-      // Extract detail from API error response
-      try {
-        const parsed = JSON.parse(message.replace(/^API \d+: /, ""));
-        setError(parsed.detail || message);
-      } catch {
-        setError(message);
-      }
-    } finally {
-      setLoading(false);
-    }
+  const registerForm = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { email: "", password: "", first_name: "", last_name: "" },
+  });
+
+  const isPending = isRegister
+    ? registerMutation.isPending
+    : loginMutation.isPending;
+
+  function handleLoginSubmit(data: LoginFormData) {
+    loginMutation.mutate(data);
   }
+
+  function handleRegisterSubmit(data: RegisterFormData) {
+    registerMutation.mutate(data);
+  }
+
+  const activeErrors = isRegister
+    ? registerForm.formState.errors
+    : loginForm.formState.errors;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
@@ -70,15 +72,21 @@ export default function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={
+              isRegister
+                ? registerForm.handleSubmit(handleRegisterSubmit)
+                : loginForm.handleSubmit(handleLoginSubmit)
+            }
+            className="space-y-4"
+          >
             {isRegister && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Nombre</Label>
                   <Input
                     id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    {...registerForm.register("first_name")}
                     placeholder="Juan"
                   />
                 </div>
@@ -86,8 +94,7 @@ export default function LoginPage() {
                   <Label htmlFor="lastName">Apellido</Label>
                   <Input
                     id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    {...registerForm.register("last_name")}
                     placeholder="Pérez"
                   />
                 </div>
@@ -99,12 +106,17 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...(isRegister
+                  ? registerForm.register("email")
+                  : loginForm.register("email"))}
                 placeholder="correo@ejemplo.com"
-                required
                 autoFocus
               />
+              {activeErrors.email && (
+                <p className="text-xs text-red-500">
+                  {activeErrors.email.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -112,22 +124,20 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...(isRegister
+                  ? registerForm.register("password")
+                  : loginForm.register("password"))}
                 placeholder="Mínimo 8 caracteres"
-                required
-                minLength={8}
               />
+              {activeErrors.password && (
+                <p className="text-xs text-red-500">
+                  {activeErrors.password.message}
+                </p>
+              )}
             </div>
 
-            {error && (
-              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-md px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending
                 ? "Cargando..."
                 : isRegister
                   ? "Crear cuenta"
@@ -140,7 +150,8 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setIsRegister(!isRegister);
-                setError("");
+                loginForm.reset();
+                registerForm.reset();
               }}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >

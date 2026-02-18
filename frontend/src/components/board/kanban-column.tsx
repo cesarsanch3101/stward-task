@@ -1,27 +1,25 @@
 "use client";
 
+import { memo } from "react";
 import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
+import { AnimatePresence, motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TaskCard } from "./task-card";
 import { CreateTaskDialog } from "./create-task-dialog";
-import type { Column, Task } from "@/lib/types";
+import type { Column } from "@/lib/types";
 
 interface Props {
   column: Column;
-  onTaskCreated: (task: Task) => void;
-  onTaskUpdated: (task: Task) => void;
-  onTaskDeleted: (taskId: string) => void;
+  boardId: string;
 }
 
-export function KanbanColumn({
+export const KanbanColumn = memo(function KanbanColumn({
   column,
-  onTaskCreated,
-  onTaskUpdated,
-  onTaskDeleted,
+  boardId,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: `column:${column.id}`,
@@ -39,11 +37,11 @@ export function KanbanColumn({
           {column.tasks.length}
         </span>
         <div className="ml-auto">
-          <CreateTaskDialog columnId={column.id} onTaskCreated={onTaskCreated} />
+          <CreateTaskDialog columnId={column.id} boardId={boardId} />
         </div>
       </div>
 
-      {/* Lista de tareas */}
+      {/* Task list */}
       <ScrollArea className="flex-1">
         <div
           ref={setNodeRef}
@@ -52,17 +50,23 @@ export function KanbanColumn({
           }`}
         >
           <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-            {column.tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onTaskUpdated={onTaskUpdated}
-                onTaskDeleted={onTaskDeleted}
-              />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {column.tasks.map((task) => (
+                <motion.div
+                  key={task.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <TaskCard task={task} boardId={boardId} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </SortableContext>
         </div>
       </ScrollArea>
     </div>
   );
-}
+});

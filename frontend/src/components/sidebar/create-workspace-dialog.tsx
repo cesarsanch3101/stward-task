@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
   DialogContent,
@@ -12,37 +14,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { createWorkspace } from "@/lib/api";
-import type { Workspace } from "@/lib/types";
+import { useCreateWorkspace } from "@/lib/hooks/use-workspaces";
+import { workspaceSchema, type WorkspaceFormData } from "@/lib/schemas";
 
-interface Props {
-  onWorkspaceCreated: (ws: Workspace) => void;
-}
-
-export function CreateWorkspaceDialog({ onWorkspaceCreated }: Props) {
+export function CreateWorkspaceDialog() {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
+  const createMutation = useCreateWorkspace();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+  const form = useForm<WorkspaceFormData>({
+    resolver: zodResolver(workspaceSchema),
+    defaultValues: { name: "", description: "" },
+  });
 
-    setLoading(true);
-    try {
-      const ws = await createWorkspace({ name: name.trim(), description });
-      // API returns WorkspaceSchema (without boards), add empty boards array
-      onWorkspaceCreated({ ...ws, boards: [] });
-      setName("");
-      setDescription("");
-      setOpen(false);
-    } catch (err) {
-      console.error("Error al crear espacio de trabajo:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const onSubmit = form.handleSubmit((data) => {
+    createMutation.mutate(data, {
+      onSuccess: () => {
+        form.reset();
+        setOpen(false);
+      },
+    });
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -55,37 +46,33 @@ export function CreateWorkspaceDialog({ onWorkspaceCreated }: Props) {
         <DialogHeader>
           <DialogTitle>Crear espacio de trabajo</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="ws-name">Nombre</Label>
             <Input
               id="ws-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              {...form.register("name")}
               placeholder="Ej: Mi Equipo"
-              required
             />
+            {form.formState.errors.name && (
+              <p className="text-xs text-red-500">{form.formState.errors.name.message}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="ws-desc">Descripción (opcional)</Label>
             <Textarea
               id="ws-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...form.register("description")}
               placeholder="Describe el propósito de este espacio"
               rows={2}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-            >
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || !name.trim()}>
-              {loading ? "Creando..." : "Crear"}
+            <Button type="submit" disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Creando..." : "Crear"}
             </Button>
           </div>
         </form>

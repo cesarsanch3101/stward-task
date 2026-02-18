@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { CalendarDays, User } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { PriorityBadge } from "./priority-badge";
 import { EditTaskDialog } from "./edit-task-dialog";
 import type { Task } from "@/lib/types";
@@ -31,11 +31,11 @@ function isOverdue(task: Task): boolean {
 
 interface Props {
   task: Task;
-  onTaskUpdated: (task: Task) => void;
-  onTaskDeleted: (taskId: string) => void;
+  boardId: string;
+  isOverlay?: boolean;
 }
 
-export function TaskCard({ task, onTaskUpdated, onTaskDeleted }: Props) {
+export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Props) {
   const [editOpen, setEditOpen] = useState(false);
 
   const {
@@ -48,6 +48,7 @@ export function TaskCard({ task, onTaskUpdated, onTaskDeleted }: Props) {
   } = useSortable({
     id: task.id,
     data: { type: "task", task },
+    disabled: isOverlay,
   });
 
   const style = {
@@ -61,14 +62,14 @@ export function TaskCard({ task, onTaskUpdated, onTaskDeleted }: Props) {
   return (
     <>
       <Card
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
+        ref={isOverlay ? undefined : setNodeRef}
+        style={isOverlay ? undefined : style}
+        {...(isOverlay ? {} : attributes)}
+        {...(isOverlay ? {} : listeners)}
         className={`cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow ${
           overdue ? "border-red-400 bg-red-50" : ""
         }`}
-        onClick={() => setEditOpen(true)}
+        onClick={() => !isOverlay && setEditOpen(true)}
       >
         <CardHeader className="p-3 pb-1">
           <div className="flex items-center gap-2">
@@ -97,7 +98,7 @@ export function TaskCard({ task, onTaskUpdated, onTaskDeleted }: Props) {
                 <div className={`flex items-center gap-1 text-[11px] ${overdue ? "text-red-600 font-medium" : "text-slate-500"}`}>
                   <CalendarDays className="h-3 w-3" />
                   {task.start_date && formatDate(task.start_date)}
-                  {task.start_date && task.end_date && " → "}
+                  {task.start_date && task.end_date && " \u2192 "}
                   {task.end_date && formatDate(task.end_date)}
                 </div>
               )}
@@ -119,13 +120,14 @@ export function TaskCard({ task, onTaskUpdated, onTaskDeleted }: Props) {
         </CardContent>
       </Card>
 
-      <EditTaskDialog
-        task={task}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        onTaskUpdated={onTaskUpdated}
-        onTaskDeleted={onTaskDeleted}
-      />
+      {!isOverlay && (
+        <EditTaskDialog
+          task={task}
+          boardId={boardId}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
     </>
   );
-}
+});

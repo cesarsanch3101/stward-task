@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { MoreHorizontal, Pencil, Trash2, Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,108 +33,72 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-  updateWorkspace,
-  deleteWorkspace,
-  createBoard,
-} from "@/lib/api";
-import type { Workspace, BoardSummary } from "@/lib/types";
+  useUpdateWorkspace,
+  useDeleteWorkspace,
+} from "@/lib/hooks/use-workspaces";
+import { useCreateBoard } from "@/lib/hooks/use-board";
+import { workspaceSchema, boardSchema, type WorkspaceFormData, type BoardFormData } from "@/lib/schemas";
+import type { Workspace } from "@/lib/types";
 
 interface Props {
   workspace: Workspace;
-  onWorkspaceUpdated: (ws: Workspace) => void;
-  onWorkspaceDeleted: (workspaceId: string) => void;
-  onBoardCreated: (board: BoardSummary) => void;
 }
 
-export function WorkspaceMenu({
-  workspace,
-  onWorkspaceUpdated,
-  onWorkspaceDeleted,
-  onBoardCreated,
-}: Props) {
+export function WorkspaceMenu({ workspace }: Props) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Edit state
   const [editOpen, setEditOpen] = useState(false);
-  const [editName, setEditName] = useState(workspace.name);
-  const [editDesc, setEditDesc] = useState(workspace.description);
-  const [editLoading, setEditLoading] = useState(false);
-
-  // Delete state
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
-  // Create board state
   const [createOpen, setCreateOpen] = useState(false);
-  const [boardName, setBoardName] = useState("");
-  const [boardDesc, setBoardDesc] = useState("");
-  const [createLoading, setCreateLoading] = useState(false);
 
-  const handleEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editName.trim()) return;
-    setEditLoading(true);
-    try {
-      const updated = await updateWorkspace(workspace.id, {
-        name: editName.trim(),
-        description: editDesc,
-      });
-      onWorkspaceUpdated({ ...workspace, ...updated, boards: workspace.boards });
-      setEditOpen(false);
-    } catch (err) {
-      console.error("Error al actualizar espacio de trabajo:", err);
-    } finally {
-      setEditLoading(false);
-    }
-  };
+  const updateMutation = useUpdateWorkspace();
+  const deleteMutation = useDeleteWorkspace();
+  const createBoardMutation = useCreateBoard();
 
-  const handleDelete = async () => {
-    setDeleteLoading(true);
-    try {
-      await deleteWorkspace(workspace.id);
-      onWorkspaceDeleted(workspace.id);
-      const viewingDeletedBoard = workspace.boards.some(
-        (b) => pathname === `/board/${b.id}`
-      );
-      if (viewingDeletedBoard) {
-        router.push("/");
+  const editForm = useForm<WorkspaceFormData>({
+    resolver: zodResolver(workspaceSchema),
+    defaultValues: { name: workspace.name, description: workspace.description || "" },
+  });
+
+  const boardForm = useForm<BoardFormData>({
+    resolver: zodResolver(boardSchema),
+    defaultValues: { name: "", description: "" },
+  });
+
+  const handleEdit = editForm.handleSubmit((data) => {
+    updateMutation.mutate(
+      { id: workspace.id, data },
+      {
+        onSuccess: () => setEditOpen(false),
       }
-    } catch (err) {
-      console.error("Error al eliminar espacio de trabajo:", err);
-    } finally {
-      setDeleteLoading(false);
-    }
+    );
+  });
+
+  const handleDelete = () => {
+    deleteMutation.mutate(workspace.id, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        const viewingDeletedBoard = workspace.boards.some(
+          (b) => pathname === `/board/${b.id}`
+        );
+        if (viewingDeletedBoard) router.push("/");
+      },
+    });
   };
 
-  const handleCreateBoard = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!boardName.trim()) return;
-    setCreateLoading(true);
-    try {
-      const board = await createBoard({
-        name: boardName.trim(),
-        description: boardDesc,
-        workspace_id: workspace.id,
-      });
-      onBoardCreated({
-        id: board.id,
-        name: board.name,
-        description: board.description,
-        workspace_id: board.workspace_id,
-        created_at: board.created_at,
-        updated_at: board.updated_at,
-      });
-      setBoardName("");
-      setBoardDesc("");
-      setCreateOpen(false);
-      router.push(`/board/${board.id}`);
-    } catch (err) {
-      console.error("Error al crear tablero:", err);
-    } finally {
-      setCreateLoading(false);
-    }
-  };
+  const handleCreateBoard = boardForm.handleSubmit((data) => {
+    createBoardMutation.mutate(
+      { ...data, workspace_id: workspace.id },
+      {
+        onSuccess: (board) => {
+          boardForm.reset();
+          setCreateOpen(false);
+          router.push(`/board/${board.id}`);
+        },
+      }
+    );
+  });
 
   return (
     <>
@@ -149,8 +115,10 @@ export function WorkspaceMenu({
         <DropdownMenuContent align="start" className="w-48">
           <DropdownMenuItem
             onClick={() => {
-              setEditName(workspace.name);
-              setEditDesc(workspace.description);
+              editForm.reset({
+                name: workspace.name,
+                description: workspace.description || "",
+              });
               setEditOpen(true);
             }}
           >
@@ -159,8 +127,7 @@ export function WorkspaceMenu({
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => {
-              setBoardName("");
-              setBoardDesc("");
+              boardForm.reset({ name: "", description: "" });
               setCreateOpen(true);
             }}
           >
@@ -189,17 +156,17 @@ export function WorkspaceMenu({
               <Label htmlFor="ws-edit-name">Nombre</Label>
               <Input
                 id="ws-edit-name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
+                {...editForm.register("name")}
               />
+              {editForm.formState.errors.name && (
+                <p className="text-xs text-red-500">{editForm.formState.errors.name.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="ws-edit-desc">Descripción (opcional)</Label>
               <Textarea
                 id="ws-edit-desc"
-                value={editDesc}
-                onChange={(e) => setEditDesc(e.target.value)}
+                {...editForm.register("description")}
                 rows={2}
               />
             </div>
@@ -207,8 +174,8 @@ export function WorkspaceMenu({
               <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={editLoading || !editName.trim()}>
-                {editLoading ? "Guardando..." : "Guardar"}
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>
             </div>
           </form>
@@ -226,18 +193,18 @@ export function WorkspaceMenu({
               <Label htmlFor="board-name">Nombre</Label>
               <Input
                 id="board-name"
-                value={boardName}
-                onChange={(e) => setBoardName(e.target.value)}
+                {...boardForm.register("name")}
                 placeholder="Ej: Sprint 1"
-                required
               />
+              {boardForm.formState.errors.name && (
+                <p className="text-xs text-red-500">{boardForm.formState.errors.name.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="board-desc">Descripción (opcional)</Label>
               <Textarea
                 id="board-desc"
-                value={boardDesc}
-                onChange={(e) => setBoardDesc(e.target.value)}
+                {...boardForm.register("description")}
                 rows={2}
               />
             </div>
@@ -249,8 +216,8 @@ export function WorkspaceMenu({
               <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={createLoading || !boardName.trim()}>
-                {createLoading ? "Creando..." : "Crear"}
+              <Button type="submit" disabled={createBoardMutation.isPending}>
+                {createBoardMutation.isPending ? "Creando..." : "Crear"}
               </Button>
             </div>
           </form>
@@ -271,10 +238,10 @@ export function WorkspaceMenu({
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={deleteLoading}
+              disabled={deleteMutation.isPending}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleteLoading ? "Eliminando..." : "Eliminar"}
+              {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

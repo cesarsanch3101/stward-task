@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
   DialogContent,
@@ -19,56 +21,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createTask } from "@/lib/api";
-import type { Task } from "@/lib/types";
+import { useCreateTask } from "@/lib/hooks/use-tasks";
+import { taskSchema, type TaskFormData } from "@/lib/schemas";
 
 interface Props {
   columnId: string;
-  onTaskCreated: (task: Task) => void;
+  boardId: string;
 }
 
-export function CreateTaskDialog({ columnId, onTaskCreated }: Props) {
+export function CreateTaskDialog({ columnId, boardId }: Props) {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState("none");
-  const [assigneeName, setAssigneeName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [progress, setProgress] = useState(0);
+  const createMutation = useCreateTask(boardId);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const form = useForm<TaskFormData>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      priority: "none",
+      assignee_name: "",
+      start_date: "",
+      end_date: "",
+      progress: 0,
+    },
+  });
 
-    setLoading(true);
-    try {
-      const task = await createTask({
-        title: title.trim(),
-        description,
+  const onSubmit = form.handleSubmit((data) => {
+    createMutation.mutate(
+      {
+        title: data.title,
+        description: data.description,
         column_id: columnId,
-        priority,
-        assignee_name: assigneeName || undefined,
-        start_date: startDate || null,
-        end_date: endDate || null,
-        progress,
-      });
-      onTaskCreated(task);
-      setTitle("");
-      setDescription("");
-      setPriority("none");
-      setAssigneeName("");
-      setStartDate("");
-      setEndDate("");
-      setProgress(0);
-      setOpen(false);
-    } catch (err) {
-      console.error("Error al crear tarea:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+        priority: data.priority,
+        assignee_name: data.assignee_name || undefined,
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
+        progress: data.progress,
+      },
+      {
+        onSuccess: () => {
+          form.reset();
+          setOpen(false);
+        },
+      }
+    );
+  });
+
+  const progress = form.watch("progress");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -81,24 +80,25 @@ export function CreateTaskDialog({ columnId, onTaskCreated }: Props) {
         <DialogHeader>
           <DialogTitle>Nueva tarea</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">Título</Label>
             <Input
               id="title"
               placeholder="¿Qué hay que hacer?"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              {...form.register("title")}
               autoFocus
             />
+            {form.formState.errors.title && (
+              <p className="text-xs text-red-500">{form.formState.errors.title.message}</p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="description">Descripción</Label>
             <Textarea
               id="description"
               placeholder="Detalles adicionales (opcional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...form.register("description")}
               rows={3}
             />
           </div>
@@ -106,25 +106,30 @@ export function CreateTaskDialog({ columnId, onTaskCreated }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label>Prioridad</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin prioridad</SelectItem>
-                  <SelectItem value="low">Baja</SelectItem>
-                  <SelectItem value="medium">Media</SelectItem>
-                  <SelectItem value="high">Alta</SelectItem>
-                  <SelectItem value="urgent">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin prioridad</SelectItem>
+                      <SelectItem value="low">Baja</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="create-assignee">Persona asignada</Label>
               <Input
                 id="create-assignee"
-                value={assigneeName}
-                onChange={(e) => setAssigneeName(e.target.value)}
+                {...form.register("assignee_name")}
                 placeholder="Nombre completo"
               />
             </div>
@@ -136,8 +141,7 @@ export function CreateTaskDialog({ columnId, onTaskCreated }: Props) {
               <Input
                 id="create-start-date"
                 type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                {...form.register("start_date")}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -145,9 +149,11 @@ export function CreateTaskDialog({ columnId, onTaskCreated }: Props) {
               <Input
                 id="create-end-date"
                 type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                {...form.register("end_date")}
               />
+              {form.formState.errors.end_date && (
+                <p className="text-xs text-red-500">{form.formState.errors.end_date.message}</p>
+              )}
             </div>
           </div>
 
@@ -161,15 +167,14 @@ export function CreateTaskDialog({ columnId, onTaskCreated }: Props) {
               min={0}
               max={100}
               step={5}
-              value={progress}
-              onChange={(e) => setProgress(Number(e.target.value))}
+              {...form.register("progress", { valueAsNumber: true })}
               title={`Progreso: ${progress}%`}
               className="w-full accent-blue-500"
             />
           </div>
 
-          <Button type="submit" disabled={loading || !title.trim()}>
-            {loading ? "Creando..." : "Crear tarea"}
+          <Button type="submit" disabled={createMutation.isPending}>
+            {createMutation.isPending ? "Creando..." : "Crear tarea"}
           </Button>
         </form>
       </DialogContent>
