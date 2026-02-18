@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { login, register } from "@/lib/api";
 import { setTokens } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -48,13 +49,25 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">
-            {isRegister ? "Crear cuenta" : "Iniciar sesión"}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            Stward Task — Gestión de proyectos
-          </p>
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <Image
+              src="/logo-stward.png"
+              alt="Stward Corporation"
+              width={180}
+              height={48}
+              priority
+              className="dark:invert"
+            />
+          </div>
+          <div>
+            <CardTitle className="text-2xl font-bold">
+              {isRegister ? "Crear cuenta" : "Iniciar sesión"}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Stward Task — Gestión de proyectos
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
