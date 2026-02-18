@@ -1,21 +1,83 @@
-import { Board, BoardSummary, Task, Workspace } from "./types";
+import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth";
+import { Board, BoardSummary, Task, TokenPair, User, Workspace } from "./types";
 
 // Server-side (SSR) uses the Docker internal network; client-side uses the public URL
 const API_BASE_SERVER = process.env.API_URL_INTERNAL ?? "http://backend:8000/api";
-const API_BASE_CLIENT = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+const API_BASE_CLIENT =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
 function getApiBase() {
   return typeof window === "undefined" ? API_BASE_SERVER : API_BASE_CLIENT;
+}
+
+function authHeaders(): HeadersInit {
+  const token = getAccessToken();
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+}
+
+async function handleTokenRefresh(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${getApiBase()}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+
+    if (!res.ok) {
+      clearTokens();
+      return false;
+    }
+
+    const tokens: TokenPair = await res.json();
+    setTokens(tokens);
+    return true;
+  } catch {
+    clearTokens();
+    return false;
+  }
 }
 
 async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${getApiBase()}${path}`, {
     cache: "no-store",
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+      ...init?.headers,
+    },
   });
+
+  // Auto-refresh on 401
+  if (res.status === 401 && typeof window !== "undefined") {
+    const refreshed = await handleTokenRefresh();
+    if (refreshed) {
+      const retryRes = await fetch(`${getApiBase()}${path}`, {
+        cache: "no-store",
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+          ...init?.headers,
+        },
+      });
+      if (retryRes.ok) return retryRes.json();
+    }
+    // Redirect to login if refresh also fails
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+  }
+
   if (!res.ok) {
-    throw new Error(`API ${res.status}: ${await res.text()}`);
+    const errorText = await res.text();
+    throw new Error(`API ${res.status}: ${errorText}`);
   }
   return res.json();
 }
@@ -23,11 +85,56 @@ async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
 async function fetchNoContent(path: string, init?: RequestInit) {
   const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+      ...init?.headers,
+    },
   });
+
+  if (res.status === 401 && typeof window !== "undefined") {
+    const refreshed = await handleTokenRefresh();
+    if (refreshed) {
+      const retryRes = await fetch(`${getApiBase()}${path}`, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+          ...init?.headers,
+        },
+      });
+      if (retryRes.ok || retryRes.status === 204) return;
+    }
+    window.location.href = "/login";
+  }
+
   if (!res.ok && res.status !== 204) {
     throw new Error(`API ${res.status}: ${await res.text()}`);
   }
+}
+
+// ─── Auth ─────────────────────────────────────────
+export function login(data: { email: string; password: string }) {
+  return fetcher<TokenPair>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function register(data: {
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+}) {
+  return fetcher<TokenPair>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function getMe() {
+  return fetcher<User>("/auth/me");
 }
 
 // ─── Workspaces ──────────────────────────────────

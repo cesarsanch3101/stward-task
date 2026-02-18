@@ -9,6 +9,13 @@ export interface User {
 
 export type Priority = "none" | "low" | "medium" | "high" | "urgent";
 
+export type ColumnStatus =
+  | "pending"
+  | "in_progress"
+  | "delayed"
+  | "completed"
+  | "custom";
+
 export interface Task {
   id: string;
   title: string;
@@ -29,6 +36,7 @@ export interface Column {
   id: string;
   name: string;
   order: number;
+  status: ColumnStatus;
   tasks: Task[];
 }
 
@@ -59,4 +67,15 @@ export interface Workspace {
   boards: BoardSummary[];
   created_at: string;
   updated_at: string;
+}
+
+// ─── Auth types ───
+
+export interface TokenPair {
+  access: string;
+  refresh: string;
+}
+
+export interface AuthError {
+  detail: string;
 }

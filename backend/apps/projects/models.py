@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -70,11 +71,25 @@ class Board(TimeStampedModel):
 
 
 # ─────────────────────────────────────────────────
-# Column
+# Column — with semantic status for business logic
 # ─────────────────────────────────────────────────
+class ColumnStatus(models.TextChoices):
+    PENDING = "pending", "Pendiente"
+    IN_PROGRESS = "in_progress", "En Progreso"
+    DELAYED = "delayed", "Retrasado"
+    COMPLETED = "completed", "Completado"
+    CUSTOM = "custom", "Personalizado"
+
+
 class Column(TimeStampedModel):
     name = models.CharField(max_length=255)
     order = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=20,
+        choices=ColumnStatus.choices,
+        default=ColumnStatus.CUSTOM,
+        help_text="Estado semántico para lógica de negocio (auto-fechas, progreso).",
+    )
 
     board = models.ForeignKey(
         Board,
@@ -87,6 +102,9 @@ class Column(TimeStampedModel):
         verbose_name = "columna"
         verbose_name_plural = "columnas"
         ordering = ["order"]
+        indexes = [
+            models.Index(fields=["board", "order"]),
+        ]
 
     def __str__(self):
         return f"{self.board.name} / {self.name}"
@@ -127,10 +145,11 @@ class Task(TimeStampedModel):
         blank=True,
     )
     assignee_name = models.CharField(
-        "persona asignada",
+        "persona asignada (externa)",
         max_length=255,
         blank=True,
         default="",
+        help_text="Nombre libre para asignar a personas sin cuenta en el sistema.",
     )
     start_date = models.DateField(
         "fecha de inicio",
@@ -145,6 +164,7 @@ class Task(TimeStampedModel):
     progress = models.PositiveIntegerField(
         "progreso",
         default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Porcentaje de avance (0-100)",
     )
 
@@ -153,6 +173,26 @@ class Task(TimeStampedModel):
         verbose_name = "tarea"
         verbose_name_plural = "tareas"
         ordering = ["order"]
+        indexes = [
+            models.Index(fields=["column", "order"]),
+            models.Index(fields=["priority"]),
+            models.Index(fields=["assignee"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(progress__lte=100),
+                name="progress_max_100",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValidationError(
+                {"end_date": "La fecha de finalización debe ser posterior a la de inicio."}
+            )
 
     def __str__(self):
         return self.title

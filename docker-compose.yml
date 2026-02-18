@@ -5,8 +5,10 @@ services:
     container_name: stward_db
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "5435:5432"          # Host 5435 → Container 5432
+    # DB only accessible from internal Docker network (not exposed to host)
+    # Uncomment below for local DB access via tools like pgAdmin:
+    # ports:
+    #   - "5435:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -21,6 +23,8 @@ services:
     container_name: stward_backend
     restart: unless-stopped
     env_file: .env
+    environment:
+      - DJANGO_ENV=development
     ports:
       - "8000:8000"
     volumes:

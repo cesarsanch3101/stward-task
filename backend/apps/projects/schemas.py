@@ -1,7 +1,32 @@
-from uuid import UUID
-from datetime import date, datetime
+"""
+API Schemas — strict validation contracts.
+All input is validated with Field constraints.
+"""
 
-from ninja import Schema
+from datetime import date, datetime
+from enum import Enum
+from uuid import UUID
+
+from ninja import Field, Schema
+
+
+# ─────────────────────────────────────────────────
+# Enums for strict validation
+# ─────────────────────────────────────────────────
+class PriorityEnum(str, Enum):
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class ColumnStatusEnum(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    DELAYED = "delayed"
+    COMPLETED = "completed"
+    CUSTOM = "custom"
 
 
 # ─────────────────────────────────────────────────
@@ -22,7 +47,7 @@ class TaskSchema(Schema):
     title: str
     description: str
     order: int
-    priority: str
+    priority: PriorityEnum
     column_id: UUID
     assignee: UserMinimalSchema | None = None
     assignee_name: str | None = None
@@ -34,31 +59,31 @@ class TaskSchema(Schema):
 
 
 class TaskCreateSchema(Schema):
-    title: str
-    description: str = ""
+    title: str = Field(..., min_length=1, max_length=500)
+    description: str = Field("", max_length=5000)
     column_id: UUID
-    priority: str = "none"
+    priority: PriorityEnum = PriorityEnum.NONE
     assignee_id: UUID | None = None
-    assignee_name: str | None = None
+    assignee_name: str | None = Field(None, max_length=255)
     start_date: date | None = None
     end_date: date | None = None
-    progress: int = 0
+    progress: int = Field(0, ge=0, le=100)
 
 
 class TaskUpdateSchema(Schema):
-    title: str | None = None
-    description: str | None = None
-    priority: str | None = None
+    title: str | None = Field(None, min_length=1, max_length=500)
+    description: str | None = Field(None, max_length=5000)
+    priority: PriorityEnum | None = None
     assignee_id: UUID | None = None
-    assignee_name: str | None = None
+    assignee_name: str | None = Field(None, max_length=255)
     start_date: date | None = None
     end_date: date | None = None
-    progress: int | None = None
+    progress: int | None = Field(None, ge=0, le=100)
 
 
 class TaskMoveSchema(Schema):
     column_id: UUID
-    new_order: int
+    new_order: int = Field(..., ge=0, le=10000)
 
 
 # ─────────────────────────────────────────────────
@@ -68,12 +93,14 @@ class ColumnSchema(Schema):
     id: UUID
     name: str
     order: int
+    status: ColumnStatusEnum
     tasks: list[TaskSchema]
 
 
 class ColumnCreateSchema(Schema):
-    name: str
-    order: int = 0
+    name: str = Field(..., min_length=1, max_length=255)
+    order: int = Field(0, ge=0)
+    status: ColumnStatusEnum = ColumnStatusEnum.CUSTOM
 
 
 # ─────────────────────────────────────────────────
@@ -99,14 +126,14 @@ class BoardDetailSchema(Schema):
 
 
 class BoardCreateSchema(Schema):
-    name: str
-    description: str = ""
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str = Field("", max_length=2000)
     workspace_id: UUID
 
 
 class BoardUpdateSchema(Schema):
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=2000)
 
 
 # ─────────────────────────────────────────────────
@@ -132,10 +159,10 @@ class WorkspaceWithBoardsSchema(Schema):
 
 
 class WorkspaceCreateSchema(Schema):
-    name: str
-    description: str = ""
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str = Field("", max_length=2000)
 
 
 class WorkspaceUpdateSchema(Schema):
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=2000)
