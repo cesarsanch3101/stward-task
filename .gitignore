@@ -24,5 +24,8 @@ nul
 node_modules/
 .next/
 
+# Backups
+backups/
+
 # Claude Code
 .claude/

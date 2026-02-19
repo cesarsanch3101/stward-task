@@ -45,8 +45,8 @@ services:
       - ./frontend/src:/app/src           # Hot reload source files
       - ./frontend/public:/app/public
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
-      - API_URL_INTERNAL=http://backend:8000/api
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - API_URL_INTERNAL=http://backend:8000/api/v1
     depends_on:
       - backend
 

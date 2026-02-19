@@ -39,7 +39,7 @@ export default function Home() {
       <div className="flex h-screen overflow-hidden">
         <SidebarSkeleton />
         <main className="flex-1 overflow-auto">
-          <div className="flex items-center justify-center h-full bg-slate-50">
+          <div className="flex items-center justify-center h-full bg-background">
             <p className="text-muted-foreground">Cargando...</p>
           </div>
         </main>
@@ -51,12 +51,12 @@ export default function Home() {
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
       <main className="flex-1 overflow-auto">
-        <div className="flex items-center justify-center h-full bg-slate-50">
+        <div className="flex items-center justify-center h-full bg-background">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">
+            <h1 className="text-2xl font-bold text-foreground mb-2">
               Bienvenido a Stward Task
             </h1>
-            <p className="text-slate-500">
+            <p className="text-muted-foreground">
               Crea un espacio de trabajo y un tablero desde el panel lateral para
               comenzar.
             </p>

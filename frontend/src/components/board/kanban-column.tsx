@@ -29,15 +29,15 @@ export const KanbanColumn = memo(function KanbanColumn({
   const taskIds = column.tasks.map((t) => t.id);
 
   return (
-    <div className="flex flex-col w-72 shrink-0">
+    <div className="flex flex-col w-72 shrink-0" aria-label={`Columna: ${column.name} (${column.tasks.length} tareas)`}>
       {/* Header */}
       <div className="flex items-center gap-2 px-2 pb-3">
         <div
           className="h-3 w-3 shrink-0 rounded-full"
           style={{ backgroundColor: column.color }}
         />
-        <h3 className="font-semibold text-sm text-slate-700">{column.name}</h3>
-        <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">
+        <h3 className="font-semibold text-sm text-foreground">{column.name}</h3>
+        <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
           {column.tasks.length}
         </span>
         <div className="ml-auto">
@@ -49,8 +49,10 @@ export const KanbanColumn = memo(function KanbanColumn({
       <ScrollArea className="flex-1">
         <div
           ref={setNodeRef}
+          role="list"
+          aria-label={`Tareas en ${column.name}`}
           className={`flex flex-col gap-2 min-h-[60px] rounded-lg p-1 transition-colors ${
-            isOver ? "bg-blue-50" : ""
+            isOver ? "bg-blue-50 dark:bg-blue-950" : ""
           }`}
         >
           <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
@@ -58,6 +60,7 @@ export const KanbanColumn = memo(function KanbanColumn({
               {column.tasks.map((task) => (
                 <motion.div
                   key={task.id}
+                  role="listitem"
                   layout
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}

@@ -1,0 +1,50 @@
+# Production overrides — use with:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+
+  backend:
+    ports: !override []
+    volumes: !override []
+    environment:
+      - DJANGO_ENV=production
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 30 --access-logfile -
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  frontend:
+    ports: !override []
+    volumes: !override []
+    environment:
+      - NEXT_PUBLIC_API_URL=/api/v1
+      - API_URL_INTERNAL=http://backend:8000/api/v1
+    command: sh -c "npm run build && npm start"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  nginx:
+    build: ./nginx
+    container_name: stward_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M

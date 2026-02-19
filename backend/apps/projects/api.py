@@ -55,13 +55,13 @@ def create_workspace(request, payload: WorkspaceCreateSchema):
 def update_workspace(request, workspace_id: UUID, payload: WorkspaceUpdateSchema):
     ws = WorkspaceService.get_or_404(workspace_id, request.auth)
     fields = payload.dict(exclude_unset=True)
-    return WorkspaceService.update(ws, **fields)
+    return WorkspaceService.update(ws, user=request.auth, **fields)
 
 
 @router.delete("/workspaces/{workspace_id}", response={204: None}, tags=["workspaces"])
 def delete_workspace(request, workspace_id: UUID):
     ws = WorkspaceService.get_or_404(workspace_id, request.auth)
-    WorkspaceService.delete(ws)
+    WorkspaceService.delete(ws, user=request.auth)
     return 204, None
 
 
@@ -94,13 +94,13 @@ def get_board(request, board_id: UUID):
 def update_board(request, board_id: UUID, payload: BoardUpdateSchema):
     board = BoardService.get_or_404(board_id, request.auth)
     fields = payload.dict(exclude_unset=True)
-    return BoardService.update(board, **fields)
+    return BoardService.update(board, user=request.auth, **fields)
 
 
 @router.delete("/boards/{board_id}", response={204: None}, tags=["boards"])
 def delete_board(request, board_id: UUID):
     board = BoardService.get_or_404(board_id, request.auth)
-    BoardService.delete(board)
+    BoardService.delete(board, user=request.auth)
     return 204, None
 
 
@@ -145,13 +145,13 @@ def create_task(request, payload: TaskCreateSchema):
 def update_task(request, task_id: UUID, payload: TaskUpdateSchema):
     task = TaskService.get_or_404(task_id, request.auth)
     fields = payload.dict(exclude_unset=True)
-    return TaskService.update(task, **fields)
+    return TaskService.update(task, user=request.auth, **fields)
 
 
 @router.delete("/tasks/{task_id}", response={204: None}, tags=["tasks"])
 def delete_task(request, task_id: UUID):
     task = TaskService.get_or_404(task_id, request.auth)
-    TaskService.delete(task)
+    TaskService.delete(task, user=request.auth)
     return 204, None
 
 

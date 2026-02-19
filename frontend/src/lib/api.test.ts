@@ -57,7 +57,7 @@ describe("API client", () => {
   describe("error handling", () => {
     it("throws on server error", async () => {
       server.use(
-        http.get("http://localhost:8000/api/workspaces", () => {
+        http.get("http://localhost:8000/api/v1/workspaces", () => {
           return HttpResponse.json(
             { detail: "Server error" },
             { status: 500 }

@@ -30,10 +30,10 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex flex-col items-center justify-center p-8 gap-4">
           <div className="text-center space-y-2">
-            <h2 className="text-lg font-semibold text-slate-900">
+            <h2 className="text-lg font-semibold text-foreground">
               Algo salió mal
             </h2>
-            <p className="text-sm text-slate-500 max-w-md">
+            <p className="text-sm text-muted-foreground max-w-md">
               Ocurrió un error inesperado. Intenta recargar la página.
             </p>
           </div>

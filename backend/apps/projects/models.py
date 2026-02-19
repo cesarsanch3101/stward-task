@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 # ─────────────────────────────────────────────────
@@ -20,9 +21,68 @@ class TimeStampedModel(models.Model):
 
 
 # ─────────────────────────────────────────────────
+# Soft-delete mixin
+# ─────────────────────────────────────────────────
+class SoftDeleteManager(models.Manager):
+    """Default manager: excludes soft-deleted records."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class AllObjectsManager(models.Manager):
+    """Manager that includes soft-deleted records (for admin)."""
+
+    pass
+
+
+class SoftDeleteModel(models.Model):
+    """Mixin for soft-delete support."""
+
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = SoftDeleteManager()
+    all_objects = AllObjectsManager()
+
+    class Meta:
+        abstract = True
+
+    def soft_delete(self):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
+
+
+# ─────────────────────────────────────────────────
+# Audit mixin
+# ─────────────────────────────────────────────────
+class AuditMixin(models.Model):
+    """Mixin for tracking who created/updated a record."""
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(class)s_created",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="%(class)s_updated",
+    )
+
+    class Meta:
+        abstract = True
+
+
+# ─────────────────────────────────────────────────
 # Workspace
 # ─────────────────────────────────────────────────
-class Workspace(TimeStampedModel):
+class Workspace(TimeStampedModel, SoftDeleteModel, AuditMixin):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
 
@@ -50,7 +110,7 @@ class Workspace(TimeStampedModel):
 # ─────────────────────────────────────────────────
 # Board
 # ─────────────────────────────────────────────────
-class Board(TimeStampedModel):
+class Board(TimeStampedModel, SoftDeleteModel, AuditMixin):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
 
@@ -126,7 +186,7 @@ class Priority(models.TextChoices):
     URGENT = "urgent", "Urgente"
 
 
-class Task(TimeStampedModel):
+class Task(TimeStampedModel, SoftDeleteModel, AuditMixin):
     title = models.CharField(max_length=500)
     description = models.TextField(blank=True, default="")
     order = models.PositiveIntegerField(default=0)

@@ -12,12 +12,12 @@ class APIClient:
 
     def get(self, path, headers=None):
         kwargs = self._build_kwargs(headers)
-        return self._client.get(f"/api{path}", **kwargs)
+        return self._client.get(f"/api/v1{path}", **kwargs)
 
     def post(self, path, json=None, headers=None):
         kwargs = self._build_kwargs(headers)
         return self._client.post(
-            f"/api{path}",
+            f"/api/v1{path}",
             data=json_lib.dumps(json) if json else None,
             content_type="application/json",
             **kwargs,
@@ -26,7 +26,7 @@ class APIClient:
     def put(self, path, json=None, headers=None):
         kwargs = self._build_kwargs(headers)
         return self._client.put(
-            f"/api{path}",
+            f"/api/v1{path}",
             data=json_lib.dumps(json) if json else None,
             content_type="application/json",
             **kwargs,
@@ -34,7 +34,7 @@ class APIClient:
 
     def delete(self, path, headers=None):
         kwargs = self._build_kwargs(headers)
-        return self._client.delete(f"/api{path}", **kwargs)
+        return self._client.delete(f"/api/v1{path}", **kwargs)
 
     @staticmethod
     def _build_kwargs(headers):

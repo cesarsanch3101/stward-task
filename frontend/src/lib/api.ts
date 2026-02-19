@@ -11,9 +11,9 @@ import {
 } from "./types";
 
 // Server-side (SSR) uses the Docker internal network; client-side uses the public URL
-const API_BASE_SERVER = process.env.API_URL_INTERNAL ?? "http://backend:8000/api";
+const API_BASE_SERVER = process.env.API_URL_INTERNAL ?? "http://backend:8000/api/v1";
 const API_BASE_CLIENT =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 function getApiBase() {
   return typeof window === "undefined" ? API_BASE_SERVER : API_BASE_CLIENT;

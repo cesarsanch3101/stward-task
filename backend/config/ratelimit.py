@@ -31,7 +31,7 @@ class RateLimitMiddleware:
 
         ip = self._get_client_ip(request)
 
-        is_auth = request.path.startswith("/api/auth/")
+        is_auth = request.path.startswith("/api/v1/auth/")
         if is_auth:
             max_requests = getattr(settings, "RATE_LIMIT_AUTH_REQUESTS", 10)
             window = getattr(settings, "RATE_LIMIT_AUTH_WINDOW", 60)

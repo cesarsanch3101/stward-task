@@ -67,15 +67,23 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
         {...(isOverlay ? {} : attributes)}
         {...(isOverlay ? {} : listeners)}
         className={`cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow ${
-          overdue ? "border-red-400 bg-red-50" : ""
+          overdue ? "border-red-400 bg-red-50 dark:bg-red-950" : ""
         }`}
+        tabIndex={0}
+        aria-label={`${task.title}${task.priority !== "none" ? `, prioridad ${task.priority}` : ""}${overdue ? ", vencida" : ""}`}
         onClick={() => !isOverlay && setEditOpen(true)}
+        onKeyDown={(e) => {
+          if (!isOverlay && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            setEditOpen(true);
+          }
+        }}
       >
         <CardHeader className="p-3 pb-1">
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium leading-snug flex-1">{task.title}</p>
             {overdue && (
-              <span className="text-[10px] text-red-600 font-semibold shrink-0">
+              <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold shrink-0">
                 Vencida
               </span>
             )}
@@ -86,7 +94,7 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
             <PriorityBadge priority={task.priority} />
             {(task.assignee_name || task.assignee) && (
               <Avatar className="h-6 w-6" title={task.assignee_name || task.assignee?.email}>
-                <AvatarFallback className="text-[10px] bg-slate-200">
+                <AvatarFallback className="text-[10px] bg-muted">
                   {getInitials(task.assignee_name || task.assignee?.email || "")}
                 </AvatarFallback>
               </Avatar>
@@ -95,7 +103,7 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
           {(task.start_date || task.end_date || task.progress > 0) && (
             <div className="space-y-1">
               {(task.start_date || task.end_date) && (
-                <div className={`flex items-center gap-1 text-[11px] ${overdue ? "text-red-600 font-medium" : "text-slate-500"}`}>
+                <div className={`flex items-center gap-1 text-[11px] ${overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
                   <CalendarDays className="h-3 w-3" />
                   {task.start_date && formatDate(task.start_date)}
                   {task.start_date && task.end_date && " \u2192 "}
@@ -104,13 +112,13 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
               )}
               {task.progress > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-blue-500 rounded-full transition-all"
                       style={{ width: `${Math.min(task.progress, 100)}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-slate-500 shrink-0">
+                  <span className="text-[10px] text-muted-foreground shrink-0">
                     {task.progress}%
                   </span>
                 </div>

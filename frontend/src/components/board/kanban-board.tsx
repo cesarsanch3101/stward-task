@@ -167,7 +167,7 @@ export function KanbanBoard({ board }: Props) {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-6 p-6 overflow-x-auto flex-1">
+      <div className="flex gap-6 p-6 overflow-x-auto flex-1" role="region" aria-label="Tablero Kanban">
         <AnimatePresence mode="popLayout">
           {columns.map((column) => (
             <motion.div

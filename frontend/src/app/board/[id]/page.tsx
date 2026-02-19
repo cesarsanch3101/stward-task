@@ -34,9 +34,9 @@ export default function BoardPage() {
       <div className="flex h-screen overflow-hidden">
         <SidebarSkeleton />
         <main className="flex-1 overflow-auto">
-          <div className="h-full bg-slate-50 flex flex-col">
-            <header className="border-b bg-white px-6 py-4 shrink-0">
-              <div className="h-6 w-48 bg-slate-200 rounded animate-pulse" />
+          <div className="h-full bg-background flex flex-col">
+            <header className="border-b bg-card px-6 py-4 shrink-0">
+              <div className="h-6 w-48 bg-muted rounded animate-pulse" />
             </header>
             <BoardSkeleton />
           </div>
@@ -77,20 +77,20 @@ export default function BoardPage() {
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
       <main className="flex-1 overflow-auto">
-        <div className="h-full bg-slate-50 flex flex-col">
-          <header className="border-b bg-white px-6 py-4 flex items-center gap-4 shrink-0">
-            <h1 className="text-lg font-bold text-slate-900">
+        <div className="h-full bg-background flex flex-col">
+          <header className="border-b bg-card px-6 py-4 flex items-center gap-4 shrink-0">
+            <h1 className="text-lg font-bold text-foreground">
               {board.data.name}
             </h1>
             {board.data.description && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 {board.data.description}
               </p>
             )}
             <div className="ml-auto flex items-center gap-3">
               <ViewToggle />
               {board.isFetching && !board.isLoading && (
-                <RefreshCw className="h-4 w-4 text-slate-400 animate-spin" />
+                <RefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />
               )}
             </div>
           </header>

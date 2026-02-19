@@ -41,7 +41,9 @@ class WorkspaceService:
 
     @staticmethod
     def create(user: User, *, name: str, description: str = "") -> Workspace:
-        ws = Workspace.objects.create(owner=user, name=name, description=description)
+        ws = Workspace.objects.create(
+            owner=user, name=name, description=description, created_by=user
+        )
         ws.members.add(user)
         logger.info("Workspace created: %s by user %s", ws.id, user.id)
         return ws
@@ -52,18 +54,23 @@ class WorkspaceService:
         return get_object_or_404(Workspace, id=workspace_id, owner=user)
 
     @staticmethod
-    def update(workspace: Workspace, **fields) -> Workspace:
+    def update(workspace: Workspace, user: User = None, **fields) -> Workspace:
         for key, value in fields.items():
             setattr(workspace, key, value)
         update_fields = list(fields.keys()) + ["updated_at"]
+        if user:
+            workspace.updated_by = user
+            update_fields.append("updated_by_id")
         workspace.save(update_fields=update_fields)
         workspace.refresh_from_db()
         return workspace
 
     @staticmethod
-    def delete(workspace: Workspace) -> None:
-        logger.info("Workspace deleted: %s", workspace.id)
-        workspace.delete()
+    def delete(workspace: Workspace, user: User = None) -> None:
+        logger.info("Workspace soft-deleted: %s", workspace.id)
+        if user:
+            workspace.updated_by = user
+        workspace.soft_delete()
 
 
 # ─────────────────────────────────────────────────
@@ -93,7 +100,7 @@ class BoardService:
 
         with transaction.atomic():
             board = Board.objects.create(
-                name=name, description=description, workspace=workspace
+                name=name, description=description, workspace=workspace, created_by=user
             )
             Column.objects.bulk_create(
                 [
@@ -118,18 +125,23 @@ class BoardService:
         return get_object_or_404(Board, id=board_id, workspace__owner=user)
 
     @staticmethod
-    def update(board: Board, **fields) -> Board:
+    def update(board: Board, user: User = None, **fields) -> Board:
         for key, value in fields.items():
             setattr(board, key, value)
         update_fields = list(fields.keys()) + ["updated_at"]
+        if user:
+            board.updated_by = user
+            update_fields.append("updated_by_id")
         board.save(update_fields=update_fields)
         board.refresh_from_db()
         return board
 
     @staticmethod
-    def delete(board: Board) -> None:
-        logger.info("Board deleted: %s", board.id)
-        board.delete()
+    def delete(board: Board, user: User = None) -> None:
+        logger.info("Board soft-deleted: %s", board.id)
+        if user:
+            board.updated_by = user
+        board.soft_delete()
 
 
 # ─────────────────────────────────────────────────
@@ -177,7 +189,7 @@ class TaskService:
     def create(user: User, *, column_id: UUID, **task_data) -> Task:
         """Create a task, ensuring user owns the parent board."""
         column = get_object_or_404(Column, id=column_id, board__workspace__owner=user)
-        task = Task.objects.create(column=column, **task_data)
+        task = Task.objects.create(column=column, created_by=user, **task_data)
         logger.info("Task created: %s in column %s", task.id, column.id)
         return task
 
@@ -190,8 +202,11 @@ class TaskService:
         )
 
     @staticmethod
-    def update(task: Task, **fields) -> Task:
+    def update(task: Task, user: User = None, **fields) -> Task:
         update_fields = ["updated_at"]
+        if user:
+            task.updated_by = user
+            update_fields.append("updated_by_id")
         for key, value in fields.items():
             if key == "assignee_id":
                 task.assignee_id = value
@@ -204,12 +219,14 @@ class TaskService:
         return task
 
     @staticmethod
-    def delete(task: Task) -> None:
+    def delete(task: Task, user: User = None) -> None:
         column = task.column
-        logger.info("Task deleted: %s", task.id)
+        logger.info("Task soft-deleted: %s", task.id)
         with transaction.atomic():
-            task.delete()
-            # Recompact order in the column
+            if user:
+                task.updated_by = user
+            task.soft_delete()
+            # Recompact order for remaining tasks in the column
             for idx, tid in enumerate(
                 column.tasks.order_by("order").values_list("id", flat=True)
             ):

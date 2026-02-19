@@ -147,7 +147,7 @@ jobs:
       - name: Wait for services
         run: |
           timeout 120 bash -c 'until curl -sf http://localhost:3000 > /dev/null 2>&1; do sleep 2; done'
-          timeout 60 bash -c 'until curl -sf http://localhost:8000/api/health > /dev/null 2>&1; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/api/v1/health > /dev/null 2>&1; do sleep 2; done'
       - name: Install Playwright
         working-directory: frontend
         run: |

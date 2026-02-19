@@ -32,7 +32,7 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
 
 # Dev: runserver. Production: override with gunicorn in docker-compose.prod.yml
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
