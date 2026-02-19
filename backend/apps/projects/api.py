@@ -17,6 +17,7 @@ from .schemas import (
     BoardUpdateSchema,
     ColumnCreateSchema,
     ColumnSchema,
+    ColumnUpdateSchema,
     TaskCreateSchema,
     TaskMoveSchema,
     TaskSchema,
@@ -118,8 +119,16 @@ def create_column(request, board_id: UUID, payload: ColumnCreateSchema):
         name=payload.name,
         order=payload.order,
         status=payload.status,
+        color=payload.color,
     )
     return 201, column
+
+
+@router.put("/columns/{column_id}", response=ColumnSchema, tags=["columns"])
+def update_column(request, column_id: UUID, payload: ColumnUpdateSchema):
+    column = ColumnService.get_or_404(column_id, request.auth)
+    fields = payload.dict(exclude_unset=True)
+    return ColumnService.update(column, **fields)
 
 
 # ─────────────────────────────────────────────────

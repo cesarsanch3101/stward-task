@@ -37,6 +37,7 @@ export interface Column {
   name: string;
   order: number;
   status: ColumnStatus;
+  color: string;
   tasks: Task[];
 }
 

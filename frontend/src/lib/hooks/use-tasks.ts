@@ -89,6 +89,37 @@ export function useDeleteTask(boardId: string) {
   });
 }
 
+export function useUpdateColumn(boardId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof api.updateColumn>[1];
+    }) => api.updateColumn(id, data),
+    onSuccess: (updatedColumn) => {
+      queryClient.setQueryData<Board>(boardKeys.detail(boardId), (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          columns: old.columns.map((col) =>
+            col.id === updatedColumn.id
+              ? { ...col, ...updatedColumn }
+              : col
+          ),
+        };
+      });
+      toast.success("Columna actualizada");
+    },
+    onError: () => {
+      toast.error("Error al actualizar columna");
+    },
+  });
+}
+
 export function useMoveTask(boardId: string) {
   const queryClient = useQueryClient();
 
@@ -104,14 +135,21 @@ export function useMoveTask(boardId: string) {
     }) => api.moveTask(taskId, columnId, newOrder),
     onSuccess: (updated) => {
       queryClient.setQueryData<Board>(boardKeys.detail(boardId), (old) =>
-        updateBoardColumns(old, (cols) =>
-          cols.map((col) => ({
+        updateBoardColumns(old, (cols) => {
+          // Remove the task from all columns
+          const withoutTask = cols.map((col) => ({
             ...col,
-            tasks: col.tasks.map((t) =>
-              t.id === updated.id ? { ...t, ...updated } : t
-            ),
-          }))
-        )
+            tasks: col.tasks.filter((t) => t.id !== updated.id),
+          }));
+          // Insert into the target column at the correct position
+          return withoutTask.map((col) => {
+            if (col.id !== updated.column_id) return col;
+            const tasks = [...col.tasks];
+            const insertAt = Math.min(updated.order ?? tasks.length, tasks.length);
+            tasks.splice(insertAt, 0, { ...updated });
+            return { ...col, tasks };
+          });
+        })
       );
     },
     onError: () => {

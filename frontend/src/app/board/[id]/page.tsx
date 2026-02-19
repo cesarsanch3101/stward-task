@@ -6,10 +6,13 @@ import { isAuthenticated } from "@/lib/auth";
 import { useBoard } from "@/lib/hooks/use-board";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { KanbanBoard } from "@/components/board/kanban-board";
+import { TableView } from "@/components/board/table-view";
+import { ViewToggle } from "@/components/board/view-toggle";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { BoardSkeleton } from "@/components/board/board-skeleton";
 import { SidebarSkeleton } from "@/components/sidebar/sidebar-skeleton";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { useUIStore } from "@/lib/stores/ui-store";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 
@@ -23,6 +26,7 @@ export default function BoardPage() {
 
   const board = useBoard(params.id);
   const workspaces = useWorkspaces();
+  const { boardView } = useUIStore();
 
   // Loading state
   if (board.isLoading || workspaces.isLoading) {
@@ -83,12 +87,19 @@ export default function BoardPage() {
                 {board.data.description}
               </p>
             )}
-            {board.isFetching && !board.isLoading && (
-              <RefreshCw className="h-4 w-4 text-slate-400 animate-spin ml-auto" />
-            )}
+            <div className="ml-auto flex items-center gap-3">
+              <ViewToggle />
+              {board.isFetching && !board.isLoading && (
+                <RefreshCw className="h-4 w-4 text-slate-400 animate-spin" />
+              )}
+            </div>
           </header>
           <ErrorBoundary>
-            <KanbanBoard board={board.data} />
+            {boardView === "kanban" ? (
+              <KanbanBoard board={board.data} />
+            ) : (
+              <TableView board={board.data} />
+            )}
           </ErrorBoundary>
         </div>
       </main>

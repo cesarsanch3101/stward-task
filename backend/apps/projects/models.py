@@ -90,6 +90,11 @@ class Column(TimeStampedModel):
         default=ColumnStatus.CUSTOM,
         help_text="Estado semántico para lógica de negocio (auto-fechas, progreso).",
     )
+    color = models.CharField(
+        max_length=7,
+        default="#6B7280",
+        help_text="Color hexadecimal para el encabezado del grupo (ej: #3B82F6).",
+    )
 
     board = models.ForeignKey(
         Board,

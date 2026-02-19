@@ -2,6 +2,7 @@ import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth"
 import {
   Board,
   BoardSummary,
+  Column,
   PaginatedResponse,
   Task,
   TokenPair,
@@ -249,4 +250,15 @@ export function updateTask(
 
 export function deleteTask(taskId: string) {
   return fetchNoContent(`/tasks/${taskId}`, { method: "DELETE" });
+}
+
+// ─── Columns ────────────────────────────────────
+export function updateColumn(
+  columnId: string,
+  data: { name?: string; color?: string; status?: string }
+) {
+  return fetcher<Column>(`/columns/${columnId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }

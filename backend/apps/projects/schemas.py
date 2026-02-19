@@ -94,6 +94,7 @@ class ColumnSchema(Schema):
     name: str
     order: int
     status: ColumnStatusEnum
+    color: str
     tasks: list[TaskSchema]
 
 
@@ -101,6 +102,13 @@ class ColumnCreateSchema(Schema):
     name: str = Field(..., min_length=1, max_length=255)
     order: int = Field(0, ge=0)
     status: ColumnStatusEnum = ColumnStatusEnum.CUSTOM
+    color: str = Field("#8B5CF6", pattern=r"^#[0-9A-Fa-f]{6}$")
+
+
+class ColumnUpdateSchema(Schema):
+    name: str | None = Field(None, min_length=1, max_length=255)
+    color: str | None = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    status: ColumnStatusEnum | None = None
 
 
 # ─────────────────────────────────────────────────

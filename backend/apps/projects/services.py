@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 # Default columns created with every new board
 DEFAULT_COLUMNS = [
-    {"name": "Pendiente", "status": ColumnStatus.PENDING, "order": 0},
-    {"name": "En Progreso", "status": ColumnStatus.IN_PROGRESS, "order": 1},
-    {"name": "Retrasado", "status": ColumnStatus.DELAYED, "order": 2},
-    {"name": "Completado", "status": ColumnStatus.COMPLETED, "order": 3},
+    {"name": "Pendiente", "status": ColumnStatus.PENDING, "order": 0, "color": "#6B7280"},
+    {"name": "En Progreso", "status": ColumnStatus.IN_PROGRESS, "order": 1, "color": "#3B82F6"},
+    {"name": "Retrasado", "status": ColumnStatus.DELAYED, "order": 2, "color": "#F97316"},
+    {"name": "Completado", "status": ColumnStatus.COMPLETED, "order": 3, "color": "#22C55E"},
 ]
 
 
@@ -97,7 +97,13 @@ class BoardService:
             )
             Column.objects.bulk_create(
                 [
-                    Column(board=board, name=col["name"], order=col["order"], status=col["status"])
+                    Column(
+                        board=board,
+                        name=col["name"],
+                        order=col["order"],
+                        status=col["status"],
+                        color=col["color"],
+                    )
                     for col in DEFAULT_COLUMNS
                 ]
             )
@@ -131,10 +137,35 @@ class BoardService:
 # ─────────────────────────────────────────────────
 class ColumnService:
     @staticmethod
-    def create(user: User, board_id: UUID, *, name: str, order: int = 0, status: str = "custom") -> Column:
+    def create(
+        user: User,
+        board_id: UUID,
+        *,
+        name: str,
+        order: int = 0,
+        status: str = "custom",
+        color: str = "#8B5CF6",
+    ) -> Column:
         board = get_object_or_404(Board, id=board_id, workspace__owner=user)
-        column = Column.objects.create(board=board, name=name, order=order, status=status)
+        column = Column.objects.create(
+            board=board, name=name, order=order, status=status, color=color
+        )
         column.prefetched_tasks = []
+        return column
+
+    @staticmethod
+    def get_or_404(column_id: UUID, user: User) -> Column:
+        return get_object_or_404(
+            Column, id=column_id, board__workspace__owner=user
+        )
+
+    @staticmethod
+    def update(column: Column, **fields) -> Column:
+        for key, value in fields.items():
+            setattr(column, key, value)
+        update_fields = list(fields.keys()) + ["updated_at"]
+        column.save(update_fields=update_fields)
+        column.refresh_from_db()
         return column
 
 

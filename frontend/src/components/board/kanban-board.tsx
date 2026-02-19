@@ -100,39 +100,63 @@ export function KanbanBoard({ board }: Props) {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const activeCol = findColumnByTaskId(activeId);
-    if (!activeCol) return;
+    // Compute the final columns state in one pass
+    let finalColumnId: string | null = null;
+    let finalOrder = 0;
 
-    const overColumnId = extractColumnId(overId);
-    if (!overColumnId && activeCol.tasks.some((t) => t.id === overId)) {
-      const oldIndex = activeCol.tasks.findIndex((t) => t.id === activeId);
-      const newIndex = activeCol.tasks.findIndex((t) => t.id === overId);
+    setColumns((prev) => {
+      const sourceCol = prev.find((c) =>
+        c.tasks.some((t) => t.id === activeId)
+      );
+      if (!sourceCol) return prev;
 
-      if (oldIndex !== newIndex) {
-        setColumns((prev) =>
-          prev.map((col) =>
-            col.id === activeCol.id
+      const overColumnId = extractColumnId(overId);
+
+      // Same-column reorder
+      if (!overColumnId && sourceCol.tasks.some((t) => t.id === overId)) {
+        const oldIndex = sourceCol.tasks.findIndex((t) => t.id === activeId);
+        const newIndex = sourceCol.tasks.findIndex((t) => t.id === overId);
+
+        if (oldIndex !== newIndex) {
+          const updated = prev.map((col) =>
+            col.id === sourceCol.id
               ? { ...col, tasks: arrayMove(col.tasks, oldIndex, newIndex) }
               : col
-          )
-        );
+          );
+          const col = updated.find((c) =>
+            c.tasks.some((t) => t.id === activeId)
+          );
+          if (col) {
+            finalColumnId = col.id;
+            finalOrder = col.tasks.findIndex((t) => t.id === activeId);
+          }
+          return updated;
+        }
       }
-    }
 
-    const finalCol = columns.find((c) =>
-      c.tasks.some((t) => t.id === activeId)
-    );
-    if (!finalCol) return;
-    const finalOrder = finalCol.tasks.findIndex((t) => t.id === activeId);
-
-    moveTaskMutation.mutate(
-      { taskId: activeId, columnId: finalCol.id, newOrder: finalOrder },
-      {
-        onError: () => {
-          setColumns(board.columns);
-        },
+      // Cross-column move (already handled by handleDragOver, just read position)
+      const currentCol = prev.find((c) =>
+        c.tasks.some((t) => t.id === activeId)
+      );
+      if (currentCol) {
+        finalColumnId = currentCol.id;
+        finalOrder = currentCol.tasks.findIndex((t) => t.id === activeId);
       }
-    );
+      return prev;
+    });
+
+    // Use a microtask to ensure setColumns has been processed
+    queueMicrotask(() => {
+      if (!finalColumnId) return;
+      moveTaskMutation.mutate(
+        { taskId: activeId, columnId: finalColumnId, newOrder: finalOrder },
+        {
+          onError: () => {
+            setColumns(board.columns);
+          },
+        }
+      );
+    });
   };
 
   return (
