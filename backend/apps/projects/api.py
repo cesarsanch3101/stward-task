@@ -128,7 +128,14 @@ def create_column(request, board_id: UUID, payload: ColumnCreateSchema):
 def update_column(request, column_id: UUID, payload: ColumnUpdateSchema):
     column = ColumnService.get_or_404(column_id, request.auth)
     fields = payload.dict(exclude_unset=True)
-    return ColumnService.update(column, **fields)
+    return ColumnService.update(column, user=request.auth, **fields)
+
+
+@router.delete("/columns/{column_id}", response={204: None}, tags=["columns"])
+def delete_column(request, column_id: UUID):
+    column = ColumnService.get_or_404(column_id, request.auth)
+    ColumnService.delete(column, user=request.auth)
+    return 204, None
 
 
 # ─────────────────────────────────────────────────

@@ -88,9 +88,11 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
               placeholder="¿Qué hay que hacer?"
               {...form.register("title")}
               autoFocus
+              aria-invalid={!!form.formState.errors.title}
+              aria-errormessage={form.formState.errors.title ? "error-create-title" : undefined}
             />
             {form.formState.errors.title && (
-              <p className="text-xs text-red-500">{form.formState.errors.title.message}</p>
+              <p id="error-create-title" className="text-xs text-red-500" role="alert">{form.formState.errors.title.message}</p>
             )}
           </div>
           <div className="flex flex-col gap-2">
@@ -150,9 +152,11 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
                 id="create-end-date"
                 type="date"
                 {...form.register("end_date")}
+                aria-invalid={!!form.formState.errors.end_date}
+                aria-errormessage={form.formState.errors.end_date ? "error-create-end-date" : undefined}
               />
               {form.formState.errors.end_date && (
-                <p className="text-xs text-red-500">{form.formState.errors.end_date.message}</p>
+                <p id="error-create-end-date" className="text-xs text-red-500" role="alert">{form.formState.errors.end_date.message}</p>
               )}
             </div>
           </div>
@@ -168,7 +172,8 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
               max={100}
               step={5}
               {...form.register("progress", { valueAsNumber: true })}
-              title={`Progreso: ${progress}%`}
+              aria-label="Progreso"
+              aria-valuetext={`${progress} por ciento`}
               className="w-full accent-blue-500"
             />
           </div>

@@ -76,7 +76,7 @@ export default function BoardPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
-      <main className="flex-1 overflow-auto">
+      <main id="main-content" className="flex-1 overflow-auto">
         <div className="h-full bg-background flex flex-col">
           <header className="border-b bg-card px-6 py-4 flex items-center gap-4 shrink-0">
             <h1 className="text-lg font-bold text-foreground">

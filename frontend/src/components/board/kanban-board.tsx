@@ -7,12 +7,14 @@ import {
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   closestCorners,
+  type Announcements,
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { AnimatePresence, motion } from "framer-motion";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
@@ -35,8 +37,38 @@ export function KanbanBoard({ board }: Props) {
   }, [board.columns]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  const announcements: Announcements = {
+    onDragStart({ active }) {
+      const col = columns.find((c) => c.tasks.some((t) => t.id === active.id));
+      const task = col?.tasks.find((t) => t.id === active.id);
+      return `Arrastrando tarea: ${task?.title ?? active.id}`;
+    },
+    onDragOver({ over }) {
+      if (!over) return "";
+      const overId = over.id as string;
+      const colId = overId.startsWith("column:") ? overId.replace("column:", "") : null;
+      const targetCol = colId
+        ? columns.find((c) => c.id === colId)
+        : columns.find((c) => c.tasks.some((t) => t.id === overId));
+      return targetCol ? `Sobre columna: ${targetCol.name}` : "";
+    },
+    onDragEnd({ active, over }) {
+      if (!over) return "Arrastre cancelado";
+      const overId = over.id as string;
+      const colId = overId.startsWith("column:") ? overId.replace("column:", "") : null;
+      const targetCol = colId
+        ? columns.find((c) => c.id === colId)
+        : columns.find((c) => c.tasks.some((t) => t.id === active.id));
+      return targetCol ? `Tarea movida a: ${targetCol.name}` : "Tarea movida";
+    },
+    onDragCancel() {
+      return "Arrastre cancelado";
+    },
+  };
 
   const findColumnByTaskId = useCallback(
     (taskId: string): Column | undefined =>
@@ -166,6 +198,7 @@ export function KanbanBoard({ board }: Props) {
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      accessibility={{ announcements }}
     >
       <div className="flex gap-6 p-6 overflow-x-auto flex-1" role="region" aria-label="Tablero Kanban">
         <AnimatePresence mode="popLayout">

@@ -68,9 +68,7 @@ class WorkspaceService:
     @staticmethod
     def delete(workspace: Workspace, user: User = None) -> None:
         logger.info("Workspace soft-deleted: %s", workspace.id)
-        if user:
-            workspace.updated_by = user
-        workspace.soft_delete()
+        workspace.soft_delete(deleted_by=user)
 
 
 # ─────────────────────────────────────────────────
@@ -139,9 +137,7 @@ class BoardService:
     @staticmethod
     def delete(board: Board, user: User = None) -> None:
         logger.info("Board soft-deleted: %s", board.id)
-        if user:
-            board.updated_by = user
-        board.soft_delete()
+        board.soft_delete(deleted_by=user)
 
 
 # ─────────────────────────────────────────────────
@@ -160,7 +156,8 @@ class ColumnService:
     ) -> Column:
         board = get_object_or_404(Board, id=board_id, workspace__owner=user)
         column = Column.objects.create(
-            board=board, name=name, order=order, status=status, color=color
+            board=board, name=name, order=order, status=status, color=color,
+            created_by=user,
         )
         column.prefetched_tasks = []
         return column
@@ -172,13 +169,28 @@ class ColumnService:
         )
 
     @staticmethod
-    def update(column: Column, **fields) -> Column:
+    def update(column: Column, user: User = None, **fields) -> Column:
         for key, value in fields.items():
             setattr(column, key, value)
         update_fields = list(fields.keys()) + ["updated_at"]
+        if user:
+            column.updated_by = user
+            update_fields.append("updated_by_id")
         column.save(update_fields=update_fields)
         column.refresh_from_db()
         return column
+
+    @staticmethod
+    def delete(column: Column, user: User = None) -> None:
+        board = column.board
+        logger.info("Column soft-deleted: %s", column.id)
+        with transaction.atomic():
+            column.soft_delete(deleted_by=user)
+            # Recompact order for remaining columns in the board
+            for idx, cid in enumerate(
+                board.columns.order_by("order").values_list("id", flat=True)
+            ):
+                Column.objects.filter(id=cid).update(order=idx)
 
 
 # ─────────────────────────────────────────────────
@@ -223,9 +235,7 @@ class TaskService:
         column = task.column
         logger.info("Task soft-deleted: %s", task.id)
         with transaction.atomic():
-            if user:
-                task.updated_by = user
-            task.soft_delete()
+            task.soft_delete(deleted_by=user)
             # Recompact order for remaining tasks in the column
             for idx, tid in enumerate(
                 column.tasks.order_by("order").values_list("id", flat=True)

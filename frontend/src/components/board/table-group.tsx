@@ -35,23 +35,28 @@ export function TableGroup({
   return (
     <div className="mb-4">
       {/* Group header */}
-      <div
-        className="flex cursor-pointer select-none items-center gap-2 rounded-t-md px-3 py-2"
+      <button
+        type="button"
+        className="flex w-full cursor-pointer select-none items-center gap-2 rounded-t-md px-3 py-2 text-left"
         style={{
           backgroundColor: `${column.color}15`,
           borderLeft: `4px solid ${column.color}`,
         }}
         onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+        aria-controls={`group-${column.id}`}
       >
         {collapsed ? (
           <ChevronRight
-            className="h-4 w-4"
+            className="h-4 w-4 shrink-0"
             style={{ color: column.color }}
+            aria-hidden="true"
           />
         ) : (
           <ChevronDown
-            className="h-4 w-4"
+            className="h-4 w-4 shrink-0"
             style={{ color: column.color }}
+            aria-hidden="true"
           />
         )}
         <span
@@ -63,11 +68,11 @@ export function TableGroup({
         <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-400">
           {column.tasks.length}
         </span>
-      </div>
+      </button>
 
       {/* Rows */}
       {!collapsed && (
-        <>
+        <div id={`group-${column.id}`}>
           {column.tasks.map((task) => (
             <TableRow
               key={task.id}
@@ -94,7 +99,7 @@ export function TableGroup({
               Agregar elemento
             </Button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

@@ -48,10 +48,14 @@ class SoftDeleteModel(models.Model):
     class Meta:
         abstract = True
 
-    def soft_delete(self):
+    def soft_delete(self, deleted_by=None):
         self.is_deleted = True
         self.deleted_at = timezone.now()
-        self.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
+        update_fields = ["is_deleted", "deleted_at", "updated_at"]
+        if deleted_by and hasattr(self, "updated_by_id"):
+            self.updated_by = deleted_by
+            update_fields.append("updated_by_id")
+        self.save(update_fields=update_fields)
 
 
 # ─────────────────────────────────────────────────
@@ -106,6 +110,12 @@ class Workspace(TimeStampedModel, SoftDeleteModel, AuditMixin):
     def __str__(self):
         return self.name
 
+    def soft_delete(self, deleted_by=None):
+        # Cascade: soft-delete all boards (which cascades to columns/tasks)
+        for board in Board.all_objects.filter(workspace_id=self.id, is_deleted=False):
+            board.soft_delete(deleted_by=deleted_by)
+        super().soft_delete(deleted_by=deleted_by)
+
 
 # ─────────────────────────────────────────────────
 # Board
@@ -129,6 +139,12 @@ class Board(TimeStampedModel, SoftDeleteModel, AuditMixin):
     def __str__(self):
         return self.name
 
+    def soft_delete(self, deleted_by=None):
+        # Cascade: soft-delete all columns (which cascades to tasks)
+        for column in Column.all_objects.filter(board_id=self.id, is_deleted=False):
+            column.soft_delete(deleted_by=deleted_by)
+        super().soft_delete(deleted_by=deleted_by)
+
 
 # ─────────────────────────────────────────────────
 # Column — with semantic status for business logic
@@ -141,7 +157,7 @@ class ColumnStatus(models.TextChoices):
     CUSTOM = "custom", "Personalizado"
 
 
-class Column(TimeStampedModel):
+class Column(TimeStampedModel, SoftDeleteModel, AuditMixin):
     name = models.CharField(max_length=255)
     order = models.PositiveIntegerField(default=0)
     status = models.CharField(
@@ -173,6 +189,14 @@ class Column(TimeStampedModel):
 
     def __str__(self):
         return f"{self.board.name} / {self.name}"
+
+    def soft_delete(self, deleted_by=None):
+        # Cascade: soft-delete all tasks in this column
+        Task.all_objects.filter(column_id=self.id, is_deleted=False).update(
+            is_deleted=True,
+            deleted_at=timezone.now(),
+        )
+        super().soft_delete(deleted_by=deleted_by)
 
 
 # ─────────────────────────────────────────────────

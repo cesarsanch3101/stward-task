@@ -50,7 +50,7 @@ export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
-      <main className="flex-1 overflow-auto">
+      <main id="main-content" className="flex-1 overflow-auto">
         <div className="flex items-center justify-center h-full bg-background">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-2">

@@ -113,9 +113,11 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
               id="edit-title"
               {...form.register("title")}
               autoFocus
+              aria-invalid={!!form.formState.errors.title}
+              aria-errormessage={form.formState.errors.title ? "error-edit-title" : undefined}
             />
             {form.formState.errors.title && (
-              <p className="text-xs text-red-500">{form.formState.errors.title.message}</p>
+              <p id="error-edit-title" className="text-xs text-red-500" role="alert">{form.formState.errors.title.message}</p>
             )}
           </div>
           <div className="flex flex-col gap-2">
@@ -174,9 +176,11 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                 id="edit-end-date"
                 type="date"
                 {...form.register("end_date")}
+                aria-invalid={!!form.formState.errors.end_date}
+                aria-errormessage={form.formState.errors.end_date ? "error-edit-end-date" : undefined}
               />
               {form.formState.errors.end_date && (
-                <p className="text-xs text-red-500">{form.formState.errors.end_date.message}</p>
+                <p id="error-edit-end-date" className="text-xs text-red-500" role="alert">{form.formState.errors.end_date.message}</p>
               )}
             </div>
           </div>
@@ -192,7 +196,8 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
               max={100}
               step={5}
               {...form.register("progress", { valueAsNumber: true })}
-              title={`Progreso: ${progress}%`}
+              aria-label="Progreso"
+              aria-valuetext={`${progress} por ciento`}
               className="w-full accent-blue-500"
             />
           </div>
