@@ -87,3 +87,28 @@ export interface TokenPair {
 export interface AuthError {
   detail: string;
 }
+
+// ─── Comments ───
+
+export interface TaskComment {
+  id: string;
+  author: User | null;
+  author_email: string;
+  content: string;
+  source: "app" | "email";
+  created_at: string;
+}
+
+// ─── Notifications ───
+
+export type NotificationType = "assigned" | "moved" | "comment" | "completed";
+
+export interface Notification {
+  id: string;
+  task_id: string;
+  task_title: string;
+  type: NotificationType;
+  message: string;
+  read: boolean;
+  created_at: string;
+}

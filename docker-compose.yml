@@ -17,6 +17,17 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis (Celery broker) ─────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: stward_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ── Django Backend ─────────────────────────────
   backend:
     build: ./backend
@@ -32,7 +43,26 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     command: python manage.py runserver 0.0.0.0:8000
+
+  # ── Celery Worker ────────────────────────────
+  celery:
+    build: ./backend
+    container_name: stward_celery
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DJANGO_ENV=development
+    volumes:
+      - ./backend:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    command: celery -A config.celery worker --loglevel=info
 
   # ── Next.js Frontend ──────────────────────────
   frontend:

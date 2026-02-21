@@ -4,6 +4,7 @@ from ninja import NinjaAPI
 
 from apps.accounts.api import router as auth_router
 from apps.projects.api import router as projects_router
+from apps.projects.webhooks import webhook_router
 
 api = NinjaAPI(
     title="Stward Task API",
@@ -13,6 +14,7 @@ api = NinjaAPI(
 
 api.add_router("/auth", auth_router)
 api.add_router("", projects_router)
+api.add_router("/webhooks", webhook_router)
 
 
 @api.get("/health", tags=["system"], auth=None)

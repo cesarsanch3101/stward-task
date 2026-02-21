@@ -7,6 +7,7 @@ import { CreateWorkspaceDialog } from "./create-workspace-dialog";
 import { WorkspaceMenu } from "./workspace-menu";
 import { BoardMenu } from "./board-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "./notification-bell";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { SidebarSkeleton } from "./sidebar-skeleton";
 
@@ -23,7 +24,10 @@ export function AppSidebar() {
         <Link href="/" className="text-lg font-bold text-foreground">
           Stward Task
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+          <ThemeToggle />
+        </div>
       </div>
 
       <ScrollArea className="flex-1">

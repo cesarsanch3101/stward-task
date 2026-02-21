@@ -285,3 +285,83 @@ class Task(TimeStampedModel, SoftDeleteModel, AuditMixin):
 
     def __str__(self):
         return self.title
+
+
+# ─────────────────────────────────────────────────
+# Task Comment
+# ─────────────────────────────────────────────────
+class CommentSource(models.TextChoices):
+    APP = "app", "Aplicación"
+    EMAIL = "email", "Correo electrónico"
+
+
+class TaskComment(TimeStampedModel):
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="task_comments",
+    )
+    author_email = models.EmailField(blank=True, default="")
+    content = models.TextField(max_length=10000)
+    source = models.CharField(
+        max_length=10,
+        choices=CommentSource.choices,
+        default=CommentSource.APP,
+    )
+
+    class Meta:
+        db_table = "task_comments"
+        verbose_name = "comentario"
+        verbose_name_plural = "comentarios"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Comentario en {self.task.title}"
+
+
+# ─────────────────────────────────────────────────
+# Notification
+# ─────────────────────────────────────────────────
+class NotificationType(models.TextChoices):
+    ASSIGNED = "assigned", "Asignada"
+    MOVED = "moved", "Movida"
+    COMMENT = "comment", "Comentario"
+    COMPLETED = "completed", "Completada"
+
+
+class Notification(TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    type = models.CharField(
+        max_length=20,
+        choices=NotificationType.choices,
+    )
+    message = models.TextField(max_length=500)
+    read = models.BooleanField(default=False, db_index=True)
+
+    class Meta:
+        db_table = "notifications"
+        verbose_name = "notificación"
+        verbose_name_plural = "notificaciones"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "read"]),
+        ]
+
+    def __str__(self):
+        return f"Notificación para {self.user.email}: {self.message[:50]}"

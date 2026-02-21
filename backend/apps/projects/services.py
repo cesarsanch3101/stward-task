@@ -13,7 +13,17 @@ from django.shortcuts import get_object_or_404
 
 from apps.accounts.models import User
 
-from .models import Board, Column, ColumnStatus, Task, Workspace
+from .models import (
+    Board,
+    Column,
+    ColumnStatus,
+    CommentSource,
+    Notification,
+    NotificationType,
+    Task,
+    TaskComment,
+    Workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -264,18 +274,31 @@ class TaskService:
             task.order = new_order
             update_fields = ["column", "order", "updated_at"]
 
-            # Auto-date logic using Column.status instead of magic strings
+            # Auto-progress based on column position within the board
+            total_columns = target_column.board.columns.count()
+            if total_columns > 1:
+                computed_progress = round(
+                    (target_column.order / (total_columns - 1)) * 100
+                )
+            else:
+                computed_progress = 0
+
+            # COMPLETED status always forces 100%
+            if target_column.status == ColumnStatus.COMPLETED:
+                computed_progress = 100
+
+            if computed_progress != task.progress:
+                task.progress = computed_progress
+                update_fields.append("progress")
+
+            # Auto-date logic using Column.status
             if target_column.status == ColumnStatus.IN_PROGRESS and not task.start_date:
                 task.start_date = date.today()
                 update_fields.append("start_date")
 
-            if target_column.status == ColumnStatus.COMPLETED:
-                if not task.end_date:
-                    task.end_date = date.today()
-                    update_fields.append("end_date")
-                if task.progress < 100:
-                    task.progress = 100
-                    update_fields.append("progress")
+            if target_column.status == ColumnStatus.COMPLETED and not task.end_date:
+                task.end_date = date.today()
+                update_fields.append("end_date")
 
             task.save(update_fields=update_fields)
 
@@ -288,4 +311,118 @@ class TaskService:
 
         task.refresh_from_db()
         logger.info("Task %s moved to column %s at position %d", task.id, target_column.id, new_order)
+
+        # Create in-app notifications and send email when task changes column
+        if old_column.id != target_column.id:
+            NotificationService.create_for_task_move(task, old_column, target_column, user)
+            from apps.projects.tasks import send_task_moved_email
+
+            send_task_moved_email.delay(
+                str(task.id), old_column.name, target_column.name, user.email
+            )
+
         return task
+
+
+# ─────────────────────────────────────────────────
+# Comment Service
+# ─────────────────────────────────────────────────
+class CommentService:
+    @staticmethod
+    def list_for_task(task: Task):
+        return task.comments.select_related("author").all()
+
+    @staticmethod
+    def create(user: User, task: Task, content: str) -> TaskComment:
+        comment = TaskComment.objects.create(
+            task=task,
+            author=user,
+            author_email=user.email,
+            content=content,
+            source=CommentSource.APP,
+        )
+        # Notify assignee and creator about the new comment
+        NotificationService.create_for_comment(comment, user)
+        return comment
+
+    @staticmethod
+    def create_from_email(task: Task, sender_email: str, content: str, author=None) -> TaskComment:
+        return TaskComment.objects.create(
+            task=task,
+            author=author,
+            author_email=sender_email,
+            content=content,
+            source=CommentSource.EMAIL,
+        )
+
+
+# ─────────────────────────────────────────────────
+# Notification Service
+# ─────────────────────────────────────────────────
+class NotificationService:
+    @staticmethod
+    def list_for_user(user: User):
+        return Notification.objects.filter(user=user).select_related("task")[:50]
+
+    @staticmethod
+    def unread_count(user: User) -> int:
+        return Notification.objects.filter(user=user, read=False).count()
+
+    @staticmethod
+    def mark_read(notification_id, user: User) -> Notification:
+        notif = get_object_or_404(Notification, id=notification_id, user=user)
+        notif.read = True
+        notif.save(update_fields=["read", "updated_at"])
+        return notif
+
+    @staticmethod
+    def mark_all_read(user: User) -> int:
+        return Notification.objects.filter(user=user, read=False).update(read=True)
+
+    @staticmethod
+    def create_for_task_move(task: Task, old_column: Column, new_column: Column, user: User):
+        """Create notifications for assignee and creator when task moves."""
+        recipients = set()
+        if task.assignee_id and task.assignee_id != user.id:
+            recipients.add(task.assignee_id)
+        if task.created_by_id and task.created_by_id != user.id:
+            recipients.add(task.created_by_id)
+
+        if not recipients:
+            return []
+
+        ntype = (
+            NotificationType.COMPLETED
+            if new_column.status == ColumnStatus.COMPLETED
+            else NotificationType.MOVED
+        )
+        message = f'"{task.title}" movida de {old_column.name} a {new_column.name} ({task.progress}%)'
+
+        notifications = Notification.objects.bulk_create([
+            Notification(user_id=uid, task=task, type=ntype, message=message)
+            for uid in recipients
+        ])
+        return notifications
+
+    @staticmethod
+    def create_for_comment(comment: TaskComment, user: User):
+        """Create notifications when a comment is added to a task."""
+        task = comment.task
+        recipients = set()
+        if task.assignee_id and task.assignee_id != user.id:
+            recipients.add(task.assignee_id)
+        if task.created_by_id and task.created_by_id != user.id:
+            recipients.add(task.created_by_id)
+
+        if not recipients:
+            return []
+
+        message = f'Nuevo comentario en "{task.title}": {comment.content[:100]}'
+
+        return Notification.objects.bulk_create([
+            Notification(
+                user_id=uid, task=task,
+                type=NotificationType.COMMENT, message=message,
+            )
+            for uid in recipients
+        ])

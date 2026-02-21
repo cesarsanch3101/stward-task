@@ -28,3 +28,14 @@ RATE_LIMIT_ENABLED = False
 # CSP — disabled in dev (avoids blocking hot reload)
 # ──────────────────────────────────────────────
 CSP_POLICY = None
+
+# ──────────────────────────────────────────────
+# Email — console backend for dev (no SMTP needed)
+# ──────────────────────────────────────────────
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# ──────────────────────────────────────────────
+# Celery — run tasks synchronously in dev (no worker needed)
+# ──────────────────────────────────────────────
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True

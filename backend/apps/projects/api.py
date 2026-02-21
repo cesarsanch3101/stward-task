@@ -18,6 +18,10 @@ from .schemas import (
     ColumnCreateSchema,
     ColumnSchema,
     ColumnUpdateSchema,
+    NotificationCountSchema,
+    NotificationSchema,
+    TaskCommentCreateSchema,
+    TaskCommentSchema,
     TaskCreateSchema,
     TaskMoveSchema,
     TaskSchema,
@@ -27,7 +31,14 @@ from .schemas import (
     WorkspaceUpdateSchema,
     WorkspaceWithBoardsSchema,
 )
-from .services import BoardService, ColumnService, TaskService, WorkspaceService
+from .services import (
+    BoardService,
+    ColumnService,
+    CommentService,
+    NotificationService,
+    TaskService,
+    WorkspaceService,
+)
 
 router = Router(auth=jwt_auth)
 
@@ -171,3 +182,54 @@ def move_task(request, task_id: UUID, payload: TaskMoveSchema):
         new_order=payload.new_order,
         user=request.auth,
     )
+
+
+# ─────────────────────────────────────────────────
+# Comments
+# ─────────────────────────────────────────────────
+@router.get(
+    "/tasks/{task_id}/comments",
+    response=list[TaskCommentSchema],
+    tags=["comments"],
+)
+def list_comments(request, task_id: UUID):
+    task = TaskService.get_or_404(task_id, request.auth)
+    return CommentService.list_for_task(task)
+
+
+@router.post(
+    "/tasks/{task_id}/comments",
+    response={201: TaskCommentSchema},
+    tags=["comments"],
+)
+def create_comment(request, task_id: UUID, payload: TaskCommentCreateSchema):
+    task = TaskService.get_or_404(task_id, request.auth)
+    return 201, CommentService.create(request.auth, task, payload.content)
+
+
+# ─────────────────────────────────────────────────
+# Notifications
+# ─────────────────────────────────────────────────
+@router.get("/notifications", response=list[NotificationSchema], tags=["notifications"])
+def list_notifications(request):
+    return NotificationService.list_for_user(request.auth)
+
+
+@router.get("/notifications/count", response=NotificationCountSchema, tags=["notifications"])
+def notification_count(request):
+    return {"unread": NotificationService.unread_count(request.auth)}
+
+
+@router.post(
+    "/notifications/{notification_id}/read",
+    response=NotificationSchema,
+    tags=["notifications"],
+)
+def mark_notification_read(request, notification_id: UUID):
+    return NotificationService.mark_read(notification_id, request.auth)
+
+
+@router.post("/notifications/read-all", response={204: None}, tags=["notifications"])
+def mark_all_read(request):
+    NotificationService.mark_all_read(request.auth)
+    return 204, None

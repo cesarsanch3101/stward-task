@@ -222,3 +222,77 @@ class TestTaskService:
         t2.refresh_from_db()
         assert t0.order == 0
         assert t2.order == 1
+
+    # --- Auto-progress tests ---
+
+    def test_move_auto_progress_4_columns(self):
+        """Progress should follow column position: 0% / 33% / 67% / 100%."""
+        user, board, columns = self._setup_board()
+        # columns: Pendiente(0), En Progreso(1), Retrasado(2), Completado(3)
+        task = TaskService.create(user, column_id=columns[0].id, title="T", progress=0)
+        assert task.progress == 0
+
+        moved = TaskService.move(task, column_id=columns[1].id, new_order=0, user=user)
+        assert moved.progress == 33
+
+        moved = TaskService.move(moved, column_id=columns[2].id, new_order=0, user=user)
+        assert moved.progress == 67
+
+        moved = TaskService.move(moved, column_id=columns[3].id, new_order=0, user=user)
+        assert moved.progress == 100
+
+    def test_move_auto_progress_2_columns(self):
+        """With 2 columns: first=0%, last=100%."""
+        user = UserFactory()
+        ws = WorkspaceService.create(user, name="WS2")
+        board = Board.objects.create(name="B", workspace=ws, created_by=user)
+        from apps.projects.models import Column
+        col_a = Column.objects.create(board=board, name="Todo", order=0, status="pending")
+        col_b = Column.objects.create(board=board, name="Done", order=1, status="completed")
+
+        task = TaskService.create(user, column_id=col_a.id, title="T", progress=0)
+        moved = TaskService.move(task, column_id=col_b.id, new_order=0, user=user)
+        assert moved.progress == 100
+
+    def test_move_auto_progress_regression(self):
+        """Moving a task backward should decrease progress."""
+        user, board, columns = self._setup_board()
+        task = TaskService.create(user, column_id=columns[0].id, title="T", progress=0)
+
+        # Move forward to column 2 (67%)
+        moved = TaskService.move(task, column_id=columns[2].id, new_order=0, user=user)
+        assert moved.progress == 67
+
+        # Move backward to column 0 (0%)
+        moved = TaskService.move(moved, column_id=columns[0].id, new_order=0, user=user)
+        assert moved.progress == 0
+
+    def test_move_completed_always_100(self):
+        """COMPLETED column always forces 100% regardless of position."""
+        user = UserFactory()
+        ws = WorkspaceService.create(user, name="WS3")
+        board = Board.objects.create(name="B", workspace=ws, created_by=user)
+        from apps.projects.models import Column
+        # COMPLETED column is NOT the last column
+        col_a = Column.objects.create(board=board, name="Todo", order=0, status="pending")
+        col_b = Column.objects.create(board=board, name="Done", order=1, status="completed")
+        Column.objects.create(board=board, name="Archive", order=2, status="custom")
+
+        task = TaskService.create(user, column_id=col_a.id, title="T", progress=0)
+        moved = TaskService.move(task, column_id=col_b.id, new_order=0, user=user)
+        # Position-based would be 50%, but COMPLETED forces 100%
+        assert moved.progress == 100
+
+    def test_move_single_column_progress_zero(self):
+        """Reorder within single-column board keeps progress at 0."""
+        user = UserFactory()
+        ws = WorkspaceService.create(user, name="WS4")
+        board = Board.objects.create(name="B", workspace=ws, created_by=user)
+        from apps.projects.models import Column
+        col = Column.objects.create(board=board, name="Only", order=0, status="custom")
+
+        t0 = TaskService.create(user, column_id=col.id, title="T0", order=0)
+        t1 = TaskService.create(user, column_id=col.id, title="T1", order=1)
+
+        moved = TaskService.move(t1, column_id=col.id, new_order=0, user=user)
+        assert moved.progress == 0

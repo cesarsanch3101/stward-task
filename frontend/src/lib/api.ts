@@ -3,8 +3,10 @@ import {
   Board,
   BoardSummary,
   Column,
+  Notification,
   PaginatedResponse,
   Task,
+  TaskComment,
   TokenPair,
   User,
   Workspace,
@@ -261,4 +263,35 @@ export function updateColumn(
     method: "PUT",
     body: JSON.stringify(data),
   });
+}
+
+// ─── Comments ───────────────────────────────────
+export function getComments(taskId: string) {
+  return fetcher<TaskComment[]>(`/tasks/${taskId}/comments`);
+}
+
+export function createComment(taskId: string, content: string) {
+  return fetcher<TaskComment>(`/tasks/${taskId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ content }),
+  });
+}
+
+// ─── Notifications ──────────────────────────────
+export function getNotifications() {
+  return fetcher<Notification[]>("/notifications");
+}
+
+export function getNotificationCount() {
+  return fetcher<{ unread: number }>("/notifications/count");
+}
+
+export function markNotificationRead(id: string) {
+  return fetcher<Notification>(`/notifications/${id}/read`, {
+    method: "POST",
+  });
+}
+
+export function markAllNotificationsRead() {
+  return fetchNoContent("/notifications/read-all", { method: "POST" });
 }

@@ -174,3 +174,40 @@ class WorkspaceCreateSchema(Schema):
 class WorkspaceUpdateSchema(Schema):
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, max_length=2000)
+
+
+# ─────────────────────────────────────────────────
+# Task Comment
+# ─────────────────────────────────────────────────
+class TaskCommentSchema(Schema):
+    id: UUID
+    author: UserMinimalSchema | None = None
+    author_email: str
+    content: str
+    source: str
+    created_at: datetime
+
+
+class TaskCommentCreateSchema(Schema):
+    content: str = Field(..., min_length=1, max_length=10000)
+
+
+# ─────────────────────────────────────────────────
+# Notification
+# ─────────────────────────────────────────────────
+class NotificationSchema(Schema):
+    id: UUID
+    task_id: UUID
+    task_title: str
+    type: str
+    message: str
+    read: bool
+    created_at: datetime
+
+    @staticmethod
+    def resolve_task_title(obj):
+        return obj.task.title
+
+
+class NotificationCountSchema(Schema):
+    unread: int

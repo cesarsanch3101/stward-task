@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { useUpdateTask, useDeleteTask } from "@/lib/hooks/use-tasks";
 import { taskSchema, type TaskFormData } from "@/lib/schemas";
+import { CommentSection } from "./comment-section";
 import type { Task } from "@/lib/types";
 
 interface Props {
@@ -102,7 +103,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Editar tarea</DialogTitle>
         </DialogHeader>
@@ -201,6 +202,8 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
               className="w-full accent-blue-500"
             />
           </div>
+
+          <CommentSection taskId={task.id} />
 
           <div className="flex justify-between pt-2">
             <AlertDialog>
