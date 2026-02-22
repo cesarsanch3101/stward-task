@@ -37,6 +37,28 @@
 - DB not exposed to host by default (internal Docker network only)
 - Containers run as non-root users
 
+## Email Configuration (pendiente de completar)
+- **Proveedor:** Google Workspace (dominio propio registrado en Google)
+- **Envío (SMTP):** `smtp.gmail.com:587` con App Password de 16 chars
+  - Crear App Password en: myaccount.google.com → Seguridad → Contraseñas de aplicaciones
+  - Variables `.env`: `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
+- **Inbound (respuesta por email → comentario):** pendiente de decidir proveedor
+  - Opción A (recomendada): Cloudmailin — gratis hasta 200/mes, POST al webhook `/api/v1/webhooks/inbound-email`
+  - Opción B: Gmail API + Google Pub/Sub (más complejo)
+  - Opción C: deshabilitar por ahora (comentarios solo desde la app)
+- **Archivos clave:**
+  - `backend/apps/projects/tasks.py` - Celery task `send_task_moved_email`
+  - `backend/apps/projects/webhooks.py` - Endpoint inbound `/api/v1/webhooks/inbound-email`
+  - `backend/templates/projects/email/task_moved.html` - Template HTML del email
+  - `.env.example` - Variables de referencia (`INBOUND_EMAIL_DOMAIN`, `INBOUND_EMAIL_SECRET`)
+- **Test rápido de envío:**
+  ```bash
+  docker compose exec backend python manage.py shell -c "
+  from django.core.mail import send_mail
+  send_mail('Test', 'OK', 'noreply@tudominio.com', ['tu@email.com'])
+  "
+  ```
+
 ## Key Files
 - `docker-compose.yml` - Service orchestration
 - `backend/config/settings/base.py` - Shared Django settings
