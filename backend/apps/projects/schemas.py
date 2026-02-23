@@ -39,6 +39,13 @@ class UserMinimalSchema(Schema):
     last_name: str
 
 
+class TaskAssignmentSchema(Schema):
+    id: UUID
+    user: UserMinimalSchema
+    individual_progress: int
+    user_color: str
+
+
 # ─────────────────────────────────────────────────
 # Task
 # ─────────────────────────────────────────────────
@@ -54,8 +61,20 @@ class TaskSchema(Schema):
     start_date: date | None = None
     end_date: date | None = None
     progress: int
+    total_progress: int
+    parent_id: UUID | None = None
+    dependency_ids: list[UUID] = []
+    assignments: list[TaskAssignmentSchema] = []
     created_at: datetime
     updated_at: datetime
+
+    @staticmethod
+    def resolve_parent_id(obj):
+        return obj.parent_id
+
+    @staticmethod
+    def resolve_dependency_ids(obj):
+        return [d.id for d in obj.dependencies.all()] if hasattr(obj, 'dependencies') else []
 
 
 class TaskCreateSchema(Schema):
@@ -68,6 +87,9 @@ class TaskCreateSchema(Schema):
     start_date: date | None = None
     end_date: date | None = None
     progress: int = Field(0, ge=0, le=100)
+    assignee_ids: list[UUID] | None = Field(default_factory=list)
+    parent_id: UUID | None = None
+    dependency_ids: list[UUID] | None = Field(default_factory=list)
 
 
 class TaskUpdateSchema(Schema):
@@ -79,6 +101,9 @@ class TaskUpdateSchema(Schema):
     start_date: date | None = None
     end_date: date | None = None
     progress: int | None = Field(None, ge=0, le=100)
+    assignee_ids: list[UUID] | None = None
+    parent_id: UUID | None = None
+    dependency_ids: list[UUID] | None = None
 
 
 class TaskMoveSchema(Schema):

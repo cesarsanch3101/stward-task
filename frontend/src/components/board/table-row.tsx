@@ -62,12 +62,34 @@ export function TableRow({
     setLocalProgress(task.progress);
   }, [task.progress]);
 
-  const displayAssignee =
-    task.assignee_name ||
-    (task.assignee
-      ? `${task.assignee.first_name} ${task.assignee.last_name}`.trim() ||
-        task.assignee.email
-      : "—");
+  const displayAssignees = () => {
+    if (task.assignments && task.assignments.length > 0) {
+      return (
+        <div className="flex -space-x-1.5 overflow-hidden">
+          {task.assignments.slice(0, 3).map((a) => (
+            <div
+              key={a.id}
+              className="h-5 w-5 rounded-full border-1 border-background flex items-center justify-center text-[8px] font-bold text-white shadow-sm"
+              style={{ backgroundColor: a.user_color }}
+              title={a.user.email}
+            >
+              {(a.user.first_name?.[0] || a.user.email[0]).toUpperCase()}
+            </div>
+          ))}
+          {task.assignments.length > 3 && (
+            <div className="h-5 w-5 rounded-full bg-muted border-1 border-background flex items-center justify-center text-[8px] font-bold text-muted-foreground">
+              +{task.assignments.length - 3}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <span className="text-slate-400 text-xs">
+        {task.assignee_name || task.assignee?.email || "—"}
+      </span>
+    );
+  };
 
   const formatDate = (d: string | null) => {
     if (!d) return "—";
@@ -80,17 +102,17 @@ export function TableRow({
   return (
     <>
       <div
-        className="grid items-center border-b border-slate-100 transition-colors hover:bg-slate-50"
+        className="grid items-center border-b border-border/50 transition-colors hover:bg-muted/30"
         style={{ gridTemplateColumns: GRID_COLS }}
       >
         {/* Checkbox placeholder */}
-        <div className="flex items-center justify-center px-2">
-          <div className="h-4 w-4 rounded border border-slate-300" />
+        <div className="flex items-center justify-center px-2 h-full border-r border-border/30">
+          <div className="h-4 w-4 rounded-sm border border-slate-300" />
         </div>
 
         {/* Title */}
         <div
-          className="cursor-text truncate px-3 py-2 text-sm"
+          className="cursor-text truncate px-3 py-2 text-[13px] font-medium h-full flex items-center border-r border-border/30"
           onClick={() => startEdit("title")}
         >
           {isEditing("title") ? (
@@ -113,12 +135,12 @@ export function TableRow({
               }}
             />
           ) : (
-            <span className="text-slate-700">{task.title}</span>
+            <span className="text-foreground/90">{task.title}</span>
           )}
         </div>
 
         {/* Status */}
-        <div className="px-3 py-2">
+        <div className="p-0 h-full border-r border-border/30">
           <StatusPill name={column.name} color={column.color} />
         </div>
 
@@ -159,31 +181,10 @@ export function TableRow({
 
         {/* Assignee */}
         <div
-          className="cursor-text truncate px-3 py-2 text-sm"
-          onClick={() => startEdit("assignee_name")}
+          className="cursor-pointer px-3 py-2 flex items-center overflow-hidden border-r border-border/30 h-full"
+          onClick={() => setEditOpen(true)}
         >
-          {isEditing("assignee_name") ? (
-            <Input
-              defaultValue={task.assignee_name ?? ""}
-              className="h-7 text-sm"
-              placeholder="Nombre"
-              autoFocus
-              onBlur={(e) => {
-                commitEdit("assignee_name", e.target.value.trim() || undefined);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  commitEdit(
-                    "assignee_name",
-                    (e.target as HTMLInputElement).value.trim() || undefined
-                  );
-                }
-                if (e.key === "Escape") setEditingCell(null);
-              }}
-            />
-          ) : (
-            <span className="text-slate-600">{displayAssignee}</span>
-          )}
+          {displayAssignees()}
         </div>
 
         {/* Start date */}
@@ -237,38 +238,39 @@ export function TableRow({
         </div>
 
         {/* Progress */}
-        <div className="px-2 py-2">
-          {isEditing("progress") ? (
-            <div className="flex items-center gap-1">
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={localProgress}
-                className="w-full accent-blue-500"
-                onChange={(e) => setLocalProgress(Number(e.target.value))}
-                onMouseUp={() => commitEdit("progress", localProgress)}
-                onTouchEnd={() => commitEdit("progress", localProgress)}
-                autoFocus
-              />
-            </div>
-          ) : (
-            <div
-              className="flex cursor-pointer items-center gap-1"
-              onClick={() => startEdit("progress")}
-            >
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+        <div className="px-3 py-2 h-full border-r border-border/30">
+          <div
+            className="flex cursor-pointer items-center gap-2 h-full"
+            onClick={() => startEdit("progress")}
+          >
+            <div className="flex-1 h-2 bg-muted/40 rounded-[2px] overflow-hidden flex gap-[1px] p-[0.5px]">
+              {task.assignments && task.assignments.length > 0 ? (
+                task.assignments.map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="h-full bg-muted/20 relative overflow-hidden"
+                    style={{ width: `${100 / task.assignments.length}%` }}
+                  >
+                    <div
+                      className="h-full transition-all duration-300"
+                      style={{
+                        width: `${assignment.individual_progress}%`,
+                        backgroundColor: assignment.user_color
+                      }}
+                    />
+                  </div>
+                ))
+              ) : (
                 <div
-                  className="h-full rounded-full bg-blue-500 transition-all"
+                  className="h-full bg-blue-500 transition-all"
                   style={{ width: `${task.progress}%` }}
                 />
-              </div>
-              <span className="text-[10px] text-slate-400">
-                {task.progress}%
-              </span>
+              )}
             </div>
-          )}
+            <span className="text-[10px] font-bold text-muted-foreground shrink-0 w-8 text-right">
+              {task.assignments && task.assignments.length > 0 ? task.total_progress : task.progress}%
+            </span>
+          </div>
         </div>
 
         {/* Actions */}

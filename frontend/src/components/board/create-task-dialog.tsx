@@ -22,7 +22,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateTask } from "@/lib/hooks/use-tasks";
+import { useBoard } from "@/lib/hooks/use-board";
+import { useWorkspaceMembers } from "@/lib/hooks/use-workspaces";
 import { taskSchema, type TaskFormData } from "@/lib/schemas";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+function getInitials(name: string) {
+  return name.slice(0, 2).toUpperCase();
+}
 
 interface Props {
   columnId: string;
@@ -32,6 +41,9 @@ interface Props {
 export function CreateTaskDialog({ columnId, boardId }: Props) {
   const [open, setOpen] = useState(false);
   const createMutation = useCreateTask(boardId);
+  const boardQuery = useBoard(boardId);
+  const workspaceId = boardQuery.data?.workspace_id;
+  const membersQuery = useWorkspaceMembers(workspaceId);
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -43,6 +55,7 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
       start_date: "",
       end_date: "",
       progress: 0,
+      assignee_ids: [],
     },
   });
 
@@ -57,6 +70,7 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
         start_date: data.start_date || null,
         end_date: data.end_date || null,
         progress: data.progress,
+        assignee_ids: data.assignee_ids,
       },
       {
         onSuccess: () => {
@@ -73,7 +87,7 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-700">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" /></svg>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
@@ -128,11 +142,45 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="create-assignee">Persona asignada</Label>
-              <Input
-                id="create-assignee"
-                {...form.register("assignee_name")}
-                placeholder="Nombre completo"
+              <Label>Colaboradores</Label>
+              <Controller
+                control={form.control}
+                name="assignee_ids"
+                render={({ field }) => (
+                  <div className="border rounded-md p-2 bg-muted/20">
+                    <ScrollArea className="h-[100px]">
+                      <div className="space-y-2 pr-4">
+                        {membersQuery.data?.map((member) => (
+                          <div key={member.id} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`create-member-${member.id}`}
+                              checked={field.value?.includes(member.id)}
+                              onCheckedChange={(checked) => {
+                                const current = field.value || [];
+                                if (checked) {
+                                  field.onChange([...current, member.id]);
+                                } else {
+                                  field.onChange(current.filter((id) => id !== member.id));
+                                }
+                              }}
+                            />
+                            <Label
+                              htmlFor={`create-member-${member.id}`}
+                              className="flex items-center gap-2 cursor-pointer text-xs flex-1"
+                            >
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
+                                  {getInitials(member.first_name || member.email)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {member.first_name} {member.last_name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
               />
             </div>
           </div>

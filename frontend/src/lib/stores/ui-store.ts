@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type BoardView = "kanban" | "table";
+type BoardView = "kanban" | "table" | "dashboard" | "gantt";
 
 interface UIState {
   sidebarOpen: boolean;

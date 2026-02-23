@@ -19,23 +19,23 @@ export function AppSidebar() {
   if (isLoading || !workspaces) return <SidebarSkeleton />;
 
   return (
-    <aside className="w-64 border-r bg-muted/50 flex flex-col h-screen shrink-0" role="navigation" aria-label="Espacios de trabajo">
-      <div className="px-4 py-4 border-b flex items-center justify-between">
-        <Link href="/" className="text-lg font-bold text-foreground">
+    <aside className="w-64 bg-monday-sidebar flex flex-col h-screen shrink-0 text-white" role="navigation" aria-label="Espacios de trabajo">
+      <div className="px-5 py-6 border-b border-white/10 flex items-center justify-between">
+        <Link href="/" className="text-xl font-bold tracking-tight">
           Stward Task
         </Link>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <NotificationBell />
           <ThemeToggle />
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-4">
+        <div className="p-4 space-y-6">
           {workspaces.map((ws) => (
             <div key={ws.id}>
-              <div className="flex items-center justify-between mb-1 px-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider leading-snug flex-1 min-w-0 break-words">
+              <div className="flex items-center justify-between mb-2 px-2">
+                <span className="text-[11px] font-bold text-white/50 uppercase tracking-[0.1em] flex-1 min-w-0">
                   {ws.name}
                 </span>
                 <div className="shrink-0 ml-1">
@@ -43,21 +43,20 @@ export function AppSidebar() {
                 </div>
               </div>
 
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {ws.boards.map((board) => {
                   const isActive = pathname === `/board/${board.id}`;
                   return (
                     <div
                       key={board.id}
-                      className={`group flex items-center rounded-md ${
-                        isActive
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
-                      }`}
+                      className={`group flex items-center rounded transition-colors ${isActive
+                          ? "bg-white/20 text-white"
+                          : "text-white/70 hover:bg-white/10 hover:text-white"
+                        }`}
                     >
                       <Link
                         href={`/board/${board.id}`}
-                        className="flex-1 px-3 py-1.5 text-sm truncate min-w-0"
+                        className="flex-1 px-3 py-2 text-sm font-medium truncate min-w-0"
                         aria-current={isActive ? "page" : undefined}
                       >
                         {board.name}

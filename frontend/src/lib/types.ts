@@ -7,6 +7,13 @@ export interface User {
   last_name: string;
 }
 
+export interface TaskAssignment {
+  id: string;
+  user: User;
+  individual_progress: number;
+  user_color: string;
+}
+
 export type Priority = "none" | "low" | "medium" | "high" | "urgent";
 
 export type ColumnStatus =
@@ -28,6 +35,10 @@ export interface Task {
   start_date: string | null;
   end_date: string | null;
   progress: number;
+  total_progress: number;
+  assignments: TaskAssignment[];
+  parent_id: string | null;
+  dependency_ids: string[];
   created_at: string;
   updated_at: string;
 }
@@ -101,7 +112,7 @@ export interface TaskComment {
 
 // ─── Notifications ───
 
-export type NotificationType = "assigned" | "moved" | "comment" | "completed";
+export type NotificationType = "assigned" | "group_assigned" | "moved" | "comment" | "completed";
 
 export interface Notification {
   id: string;

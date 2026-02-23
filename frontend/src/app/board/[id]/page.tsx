@@ -7,6 +7,8 @@ import { useBoard } from "@/lib/hooks/use-board";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { KanbanBoard } from "@/components/board/kanban-board";
 import { TableView } from "@/components/board/table-view";
+import { DashboardView } from "@/components/board/dashboard-view";
+import { GanttView } from "@/components/board/gantt-view";
 import { ViewToggle } from "@/components/board/view-toggle";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { BoardSkeleton } from "@/components/board/board-skeleton";
@@ -97,8 +99,12 @@ export default function BoardPage() {
           <ErrorBoundary>
             {boardView === "kanban" ? (
               <KanbanBoard board={board.data} />
-            ) : (
+            ) : boardView === "table" ? (
               <TableView board={board.data} />
+            ) : boardView === "gantt" ? (
+              <GanttView board={board.data} />
+            ) : (
+              <DashboardView board={board.data} />
             )}
           </ErrorBoundary>
         </div>

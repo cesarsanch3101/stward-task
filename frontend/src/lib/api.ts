@@ -174,6 +174,10 @@ export function deleteWorkspace(workspaceId: string) {
   return fetchNoContent(`/workspaces/${workspaceId}`, { method: "DELETE" });
 }
 
+export function getWorkspaceMembers(workspaceId: string) {
+  return fetcher<User[]>(`/workspaces/${workspaceId}/members`);
+}
+
 // ─── Boards ──────────────────────────────────────
 export function getBoards() {
   return fetcher<PaginatedResponse<BoardSummary>>("/boards");
@@ -225,6 +229,7 @@ export function createTask(data: {
   start_date?: string | null;
   end_date?: string | null;
   progress?: number;
+  assignee_ids?: string[];
 }) {
   return fetcher<Task>("/tasks", {
     method: "POST",
@@ -242,6 +247,7 @@ export function updateTask(
     start_date?: string | null;
     end_date?: string | null;
     progress?: number;
+    assignee_ids?: string[];
   }
 ) {
   return fetcher<Task>(`/tasks/${taskId}`, {

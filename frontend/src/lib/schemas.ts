@@ -58,6 +58,9 @@ export const taskSchema = z
     start_date: z.string().optional().or(z.literal("")),
     end_date: z.string().optional().or(z.literal("")),
     progress: z.coerce.number().min(0).max(100).default(0),
+    assignee_ids: z.array(z.string()).optional().default([]),
+    parent_id: z.string().uuid().nullable().optional(),
+    dependency_ids: z.array(z.string().uuid()).optional().default([]),
   })
   .refine(
     (data) => {

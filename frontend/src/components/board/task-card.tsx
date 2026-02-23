@@ -66,63 +66,101 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
         style={isOverlay ? undefined : style}
         {...(isOverlay ? {} : attributes)}
         {...(isOverlay ? {} : listeners)}
-        className={`cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow ${
-          overdue ? "border-red-400 bg-red-50 dark:bg-red-950" : ""
-        }`}
+        className={`cursor-grab active:cursor-grabbing border shadow-none hover:border-primary/50 transition-colors ${overdue ? "border-red-500/50 bg-red-50/30 dark:bg-red-950/20" : "bg-card"
+          }`}
         tabIndex={0}
-        aria-label={`${task.title}${task.priority !== "none" ? `, prioridad ${task.priority}` : ""}${overdue ? ", vencida" : ""}`}
-        onClick={() => !isOverlay && setEditOpen(true)}
-        onKeyDown={(e) => {
-          if (!isOverlay && (e.key === "Enter" || e.key === " ")) {
-            e.preventDefault();
+        onClick={(e) => {
+          if (!isDragging) {
             setEditOpen(true);
           }
         }}
       >
-        <CardHeader className="p-3 pb-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium leading-snug flex-1">{task.title}</p>
+        <CardHeader className="p-3 pb-2">
+          <div className="flex items-start gap-2">
+            <p className="text-[14px] font-medium leading-tight flex-1 text-foreground/90">{task.title}</p>
             {overdue && (
-              <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold shrink-0">
+              <span className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase tracking-wider shrink-0 mt-0.5">
                 Vencida
               </span>
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-3 pt-1 space-y-2">
+        <CardContent className="p-3 pt-0 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <PriorityBadge priority={task.priority} />
-            {(task.assignee_name || task.assignee) && (
-              <Avatar className="h-6 w-6" title={task.assignee_name || task.assignee?.email}>
-                <AvatarFallback className="text-[10px] bg-muted">
-                  {getInitials(task.assignee_name || task.assignee?.email || "")}
-                </AvatarFallback>
-              </Avatar>
-            )}
-          </div>
-          {(task.start_date || task.end_date || task.progress > 0) && (
-            <div className="space-y-1">
-              {(task.start_date || task.end_date) && (
-                <div className={`flex items-center gap-1 text-[11px] ${overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
-                  <CalendarDays className="h-3 w-3" />
-                  {task.start_date && formatDate(task.start_date)}
-                  {task.start_date && task.end_date && " \u2192 "}
-                  {task.end_date && formatDate(task.end_date)}
-                </div>
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              <PriorityBadge priority={task.priority} />
+            </div>
+
+            <div className="flex -space-x-2 overflow-hidden">
+              {task.assignments && task.assignments.length > 0 ? (
+                task.assignments.map((assignment) => (
+                  <Avatar
+                    key={assignment.id}
+                    className="h-6 w-6 border-2 border-background shadow-sm ring-1 ring-black/5"
+                    title={assignment.user.email}
+                  >
+                    <AvatarFallback
+                      className="text-[10px] font-bold"
+                      style={{ backgroundColor: assignment.user_color, color: 'white' }}
+                    >
+                      {getInitials(assignment.user.first_name || assignment.user.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))
+              ) : (task.assignee_name || task.assignee) && (
+                <Avatar className="h-6 w-6 border-2 border-background shadow-sm ring-1 ring-black/5" title={task.assignee_name || task.assignee?.email}>
+                  <AvatarFallback className="text-[10px] bg-muted font-bold">
+                    {getInitials(task.assignee_name || task.assignee?.email || "")}
+                  </AvatarFallback>
+                </Avatar>
               )}
-              {task.progress > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded-full transition-all"
-                      style={{ width: `${Math.min(task.progress, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {task.progress}%
+            </div>
+          </div>
+
+          {(task.start_date || task.end_date || task.progress > 0 || (task.assignments && task.assignments.length > 0)) && (
+            <div className="pt-2 border-t border-border/50 space-y-2">
+              {(task.start_date || task.end_date) && (
+                <div className={`flex items-center gap-1.5 text-[11px] ${overdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-muted-foreground/80 font-medium"}`}>
+                  <CalendarDays className="h-3 w-3 opacity-70" />
+                  <span>
+                    {task.start_date && formatDate(task.start_date)}
+                    {task.start_date && task.end_date && " - "}
+                    {task.end_date && formatDate(task.end_date)}
                   </span>
                 </div>
               )}
+
+              {/* Segmented Progress Bar (Battery Style) */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-2.5 bg-muted/50 rounded-[2px] overflow-hidden flex gap-[2px] p-[1px]">
+                  {task.assignments && task.assignments.length > 0 ? (
+                    task.assignments.map((assignment) => (
+                      <div
+                        key={assignment.id}
+                        className="h-full bg-muted/30 rounded-[1px] relative overflow-hidden group"
+                        style={{ width: `${100 / task.assignments.length}%` }}
+                        title={`${assignment.user.email}: ${assignment.individual_progress}%`}
+                      >
+                        <div
+                          className="h-full transition-all duration-500"
+                          style={{
+                            width: `${assignment.individual_progress}%`,
+                            backgroundColor: assignment.user_color
+                          }}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div
+                      className="h-full bg-primary/60 rounded-[1px] transition-all duration-500"
+                      style={{ width: `${task.progress}%` }}
+                    />
+                  )}
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground shrink-0 w-8 text-right">
+                  {task.assignments && task.assignments.length > 0 ? task.total_progress : task.progress}%
+                </span>
+              </div>
             </div>
           )}
         </CardContent>

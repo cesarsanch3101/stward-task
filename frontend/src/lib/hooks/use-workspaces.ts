@@ -8,7 +8,16 @@ import type { PaginatedResponse, Workspace } from "@/lib/types";
 export const workspaceKeys = {
   all: ["workspaces"] as const,
   detail: (id: string) => ["workspaces", id] as const,
+  members: (id: string) => ["workspaces", id, "members"] as const,
 };
+
+export function useWorkspaceMembers(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: workspaceKeys.members(workspaceId || ""),
+    queryFn: () => api.getWorkspaceMembers(workspaceId!),
+    enabled: !!workspaceId,
+  });
+}
 
 export function useWorkspaces() {
   return useQuery({
@@ -56,13 +65,13 @@ export function useUpdateWorkspace() {
         (old) =>
           old
             ? {
-                ...old,
-                items: old.items.map((ws) =>
-                  ws.id === updated.id
-                    ? { ...ws, ...updated, boards: ws.boards }
-                    : ws
-                ),
-              }
+              ...old,
+              items: old.items.map((ws) =>
+                ws.id === updated.id
+                  ? { ...ws, ...updated, boards: ws.boards }
+                  : ws
+              ),
+            }
             : undefined
       );
       toast.success("Espacio actualizado");
@@ -84,10 +93,10 @@ export function useDeleteWorkspace() {
         (old) =>
           old
             ? {
-                ...old,
-                items: old.items.filter((ws) => ws.id !== deletedId),
-                count: old.count - 1,
-              }
+              ...old,
+              items: old.items.filter((ws) => ws.id !== deletedId),
+              count: old.count - 1,
+            }
             : undefined
       );
       toast.success("Espacio eliminado");

@@ -145,8 +145,8 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 │  (Acceso a datos, queries optimizados)               │
 ├─────────────────────────────────────────────────────┤
 │                  Domain Models                       │
-│  Workspace, Board, Column, Task + Constraints        │
-│  (UUID v4, validators, indexes, soft-delete)         │
+│  Workspace, Board, Column, Task, TaskAssignment      │
+│  (UUID v4, multi-user logic, progress scoring)       │
 ├─────────────────────────────────────────────────────┤
 │                   Database                           │
 │  PostgreSQL 16 + 3NF + Strategic Denorm              │
@@ -276,6 +276,19 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 | Resource limits en Docker Compose | MEDIUM | ✅ (docker-compose.prod.yml) |
 | API versioning (v1/) | LOW | ✅ (ya existía) |
 | OpenAPI spec generation | LOW | ✅ (Django Ninja /api/v1/docs) |
+
+---
+
+### SPRINT 4 — Collaborative Power (Future)
+> Objetivo: Tareas multi-usuario y notificaciones inteligentes
+
+| Task | Prioridad | Estado |
+|------|-----------|--------|
+| Implementar tabla `TaskAssignment` (M2M con metadata) | HIGH | ⏳ PENDIENTE |
+| Sistema de colores automáticos por usuario | MEDIUM | ⏳ PENDIENTE |
+| Progreso segmentado (Barra de batería/concatenada) | HIGH | ⏳ PENDIENTE |
+| Integración Celery + SMTP para notificaciones email | CRITICAL | ⏳ PENDIENTE |
+| Lógica de "Progreso Maestro" (promedio de asignados) | MEDIUM | ⏳ PENDIENTE |
 
 ---
 

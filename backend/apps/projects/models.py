@@ -252,9 +252,27 @@ class Task(TimeStampedModel, SoftDeleteModel, AuditMixin):
     )
     progress = models.PositiveIntegerField(
         "progreso",
-        default=0,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="Porcentaje de avance (0-100)",
+        default = 0,
+        validators = [MinValueValidator(0), MaxValueValidator(100)],
+        help_text = "Porcentaje de avance (0-100)",
+    )
+
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        related_name="subtasks",
+        null=True,
+        blank=True,
+        verbose_name="tarea padre",
+        help_text="Permite crear jerarquías (Grupos/Hitos)",
+    )
+    dependencies = models.ManyToManyField(
+        "self",
+        symmetrical=False,
+        related_name="dependent_tasks",
+        blank=True,
+        verbose_name="dependencias",
+        help_text="Tareas que deben completarse antes que esta",
     )
 
     class Meta:
@@ -283,8 +301,53 @@ class Task(TimeStampedModel, SoftDeleteModel, AuditMixin):
                 {"end_date": "La fecha de finalización debe ser posterior a la de inicio."}
             )
 
+    @property
+    def total_progress(self):
+        """Calculates average progress of all assignments."""
+        assignments = self.assignments.all()
+        if not assignments.exists():
+            return self.progress
+        
+        progresses = [a.individual_progress for a in assignments]
+        return sum(progresses) // len(progresses)
+
     def __str__(self):
         return self.title
+
+
+# ─────────────────────────────────────────────────
+# Task Assignment (Multi-user)
+# ─────────────────────────────────────────────────
+class TaskAssignment(TimeStampedModel):
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name="assignments",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="task_assignments",
+    )
+    individual_progress = models.PositiveIntegerField(
+        "progreso individual",
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    user_color = models.CharField(
+        max_length=7,
+        default="#0073ea",
+        help_text="Color asignado al usuario para esta tarea (hex).",
+    )
+
+    class Meta:
+        db_table = "task_assignments"
+        verbose_name = "asignación de tarea"
+        verbose_name_plural = "asignaciones de tareas"
+        unique_together = ("task", "user")
+
+    def __str__(self):
+        return f"{self.user.email} en {self.task.title}"
 
 
 # ─────────────────────────────────────────────────
@@ -331,6 +394,7 @@ class TaskComment(TimeStampedModel):
 # ─────────────────────────────────────────────────
 class NotificationType(models.TextChoices):
     ASSIGNED = "assigned", "Asignada"
+    GROUP_ASSIGNED = "group_assigned", "Asignada a grupo"
     MOVED = "moved", "Movida"
     COMMENT = "comment", "Comentario"
     COMPLETED = "completed", "Completada"

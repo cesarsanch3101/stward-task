@@ -49,7 +49,14 @@ const config: Config = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			}
+  			},
+        monday: {
+          done: 'hsl(var(--monday-done))',
+          working: 'hsl(var(--monday-working))',
+          stuck: 'hsl(var(--monday-stuck))',
+          waiting: 'hsl(var(--monday-waiting))',
+          sidebar: 'hsl(var(--monday-sidebar))',
+        }
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

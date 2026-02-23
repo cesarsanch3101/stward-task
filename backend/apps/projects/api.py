@@ -30,6 +30,7 @@ from .schemas import (
     WorkspaceSchema,
     WorkspaceUpdateSchema,
     WorkspaceWithBoardsSchema,
+    UserMinimalSchema,
 )
 from .services import (
     BoardService,
@@ -74,6 +75,12 @@ def delete_workspace(request, workspace_id: UUID):
     ws = WorkspaceService.get_or_404(workspace_id, request.auth)
     WorkspaceService.delete(ws, user=request.auth)
     return 204, None
+
+
+@router.get("/workspaces/{workspace_id}/members", response=list[UserMinimalSchema], tags=["workspaces"])
+def list_workspace_members(request, workspace_id: UUID):
+    ws = WorkspaceService.get_or_404(workspace_id, request.auth)
+    return ws.members.all()
 
 
 # ─────────────────────────────────────────────────

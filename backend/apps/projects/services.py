@@ -21,6 +21,7 @@ from .models import (
     Notification,
     NotificationType,
     Task,
+    TaskAssignment,
     TaskComment,
     Workspace,
 )
@@ -210,8 +211,17 @@ class TaskService:
     @staticmethod
     def create(user: User, *, column_id: UUID, **task_data) -> Task:
         """Create a task, ensuring user owns the parent board."""
+        assignee_ids = task_data.pop("assignee_ids", [])
+        dependency_ids = task_data.pop("dependency_ids", [])
         column = get_object_or_404(Column, id=column_id, board__workspace__owner=user)
-        task = Task.objects.create(column=column, created_by=user, **task_data)
+        
+        with transaction.atomic():
+            task = Task.objects.create(column=column, created_by=user, **task_data)
+            if assignee_ids:
+                TaskService.sync_assignments(task, assignee_ids)
+            if dependency_ids:
+                task.dependencies.set(dependency_ids)
+        
         logger.info("Task created: %s in column %s", task.id, column.id)
         return task
 
@@ -226,19 +236,54 @@ class TaskService:
     @staticmethod
     def update(task: Task, user: User = None, **fields) -> Task:
         update_fields = ["updated_at"]
+        assignee_ids = fields.pop("assignee_ids", None)
+        dependency_ids = fields.pop("dependency_ids", None)
+        
         if user:
             task.updated_by = user
             update_fields.append("updated_by_id")
+            
         for key, value in fields.items():
             if key == "assignee_id":
                 task.assignee_id = value
                 update_fields.append("assignee_id")
+            elif key == "parent_id":
+                task.parent_id = value
+                update_fields.append("parent_id")
             else:
                 setattr(task, key, value)
                 update_fields.append(key)
-        task.save(update_fields=update_fields)
+        
+        with transaction.atomic():
+            task.save(update_fields=update_fields)
+            if assignee_ids is not None:
+                TaskService.sync_assignments(task, assignee_ids)
+            if dependency_ids is not None:
+                task.dependencies.set(dependency_ids)
+                
         task.refresh_from_db()
         return task
+
+    @staticmethod
+    def sync_assignments(task: Task, assignee_ids: list[UUID]):
+        """Syncs TaskAssignment records for a task."""
+        import random
+        # Signature Monday-like colors
+        COLORS = ["#0073ea", "#33d391", "#e2445c", "#ffcb00", "#00a9ff", "#9d50bb", "#ff758c"]
+        
+        with transaction.atomic():
+            # Remove assignments not in the new list
+            task.assignments.exclude(user_id__in=assignee_ids).delete()
+            
+            # Add new assignments
+            existing_uids = set(task.assignments.values_list("user_id", flat=True))
+            for uid in assignee_ids:
+                if uid not in existing_uids:
+                    TaskAssignment.objects.create(
+                        task=task,
+                        user_id=uid,
+                        user_color=random.choice(COLORS)
+                    )
 
     @staticmethod
     def delete(task: Task, user: User = None) -> None:
@@ -381,13 +426,21 @@ class NotificationService:
 
     @staticmethod
     def create_for_task_move(task: Task, old_column: Column, new_column: Column, user: User):
-        """Create notifications for assignee and creator when task moves."""
+        """Create notifications for all assignees and creator when task moves."""
         recipients = set()
+        # Add all assigned users
+        assigned_uids = task.assignments.values_list("user_id", flat=True)
+        for uid in assigned_uids:
+            if uid != user.id:
+                recipients.add(uid)
+        
+        # Backward compatibility for legacy assignee field
         if task.assignee_id and task.assignee_id != user.id:
             recipients.add(task.assignee_id)
+            
         if task.created_by_id and task.created_by_id != user.id:
             recipients.add(task.created_by_id)
-
+            
         if not recipients:
             return []
 
@@ -409,11 +462,19 @@ class NotificationService:
         """Create notifications when a comment is added to a task."""
         task = comment.task
         recipients = set()
+        
+        # Add all assigned users
+        assigned_uids = task.assignments.values_list("user_id", flat=True)
+        for uid in assigned_uids:
+            if uid != user.id:
+                recipients.add(uid)
+
         if task.assignee_id and task.assignee_id != user.id:
             recipients.add(task.assignee_id)
+            
         if task.created_by_id and task.created_by_id != user.id:
             recipients.add(task.created_by_id)
-
+ 
         if not recipients:
             return []
 

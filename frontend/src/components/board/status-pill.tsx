@@ -4,16 +4,32 @@ interface Props {
 }
 
 export function StatusPill({ name, color }: Props) {
+  const lowercaseName = name.toLowerCase();
+
+  let backgroundColor = color;
+  const textColor = "white";
+
+  if (lowercaseName.includes("hecho") || lowercaseName.includes("completado") || lowercaseName.includes("done")) {
+    backgroundColor = "hsl(var(--monday-done))";
+  } else if (lowercaseName.includes("proceso") || lowercaseName.includes("working")) {
+    backgroundColor = "hsl(var(--monday-working))";
+  } else if (lowercaseName.includes("atascado") || lowercaseName.includes("stuck")) {
+    backgroundColor = "hsl(var(--monday-stuck))";
+  } else if (lowercaseName.includes("espera") || lowercaseName.includes("waiting")) {
+    backgroundColor = "hsl(var(--monday-waiting))";
+  } else if (lowercaseName.includes("pendiente") || lowercaseName.includes("todo")) {
+    backgroundColor = "#c4c4c4";
+  }
+
   return (
-    <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap"
+    <div
+      className="w-full h-full min-h-[32px] flex items-center justify-center px-2 py-1 text-[13px] font-semibold text-center leading-tight transition-opacity hover:opacity-90"
       style={{
-        backgroundColor: `${color}20`,
-        color: color,
-        border: `1px solid ${color}40`,
+        backgroundColor,
+        color: textColor,
       }}
     >
       {name}
-    </span>
+    </div>
   );
 }
