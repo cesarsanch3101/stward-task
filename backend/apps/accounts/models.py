@@ -14,6 +14,19 @@ class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField("correo electrónico", unique=True)
 
+    class UserRole(models.TextChoices):
+        ADMIN = "administrador", "Administrador"
+        MANAGER = "gestor", "Gestor"
+        DEVELOPER = "desarrollador", "Desarrollador"
+        VIEWER = "observador", "Observador"
+
+    role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.DEVELOPER,
+        verbose_name="rol",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

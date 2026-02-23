@@ -9,11 +9,17 @@ const config: Record<Priority, { label: string; className: string }> = {
   urgent: { label: "Urgente", className: "bg-red-100 text-red-700 hover:bg-red-100" },
 };
 
-export function PriorityBadge({ priority }: { priority: Priority }) {
+export function PriorityBadge({
+  priority,
+  className: customClassName
+}: {
+  priority: Priority;
+  className?: string;
+}) {
   if (priority === "none") return null;
   const { label, className } = config[priority];
   return (
-    <Badge variant="secondary" className={className}>
+    <Badge variant="secondary" className={`${className} ${customClassName || ""}`}>
       {label}
     </Badge>
   );

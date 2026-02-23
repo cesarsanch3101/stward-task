@@ -44,8 +44,9 @@ class WorkspaceService:
     @staticmethod
     def list_for_user(user: User):
         """Return all workspaces the user owns or is a member of."""
+        from django.db.models import Q
         return (
-            Workspace.objects.filter(owner=user)
+            Workspace.objects.filter(Q(owner=user) | Q(members=user))
             .prefetch_related("boards")
             .distinct()
         )
@@ -61,8 +62,12 @@ class WorkspaceService:
 
     @staticmethod
     def get_or_404(workspace_id: UUID, user: User) -> Workspace:
-        """Get workspace ensuring user has access."""
-        return get_object_or_404(Workspace, id=workspace_id, owner=user)
+        """Get workspace ensuring user has access (owner or member)."""
+        from django.db.models import Q
+        return get_object_or_404(
+            Workspace, 
+            Q(id=workspace_id) & (Q(owner=user) | Q(members=user))
+        )
 
     @staticmethod
     def update(workspace: Workspace, user: User = None, **fields) -> Workspace:
@@ -88,18 +93,24 @@ class WorkspaceService:
 class BoardService:
     @staticmethod
     def list_for_user(user: User):
-        """Return all boards in workspaces owned by user."""
-        return Board.objects.filter(workspace__owner=user).select_related("workspace")
+        """Return all boards in workspaces where user is owner or member."""
+        from django.db.models import Q
+        return Board.objects.filter(
+            Q(workspace__owner=user) | Q(workspace__members=user)
+        ).select_related("workspace").distinct()
 
     @staticmethod
     def get_detail(board_id: UUID, user: User) -> Board:
-        """Get board with full column/task tree, ensuring user access."""
+        """Get board with full column/task tree, ensuring user access (owner or member)."""
+        from django.db.models import Q
         return get_object_or_404(
-            Board.objects.filter(workspace__owner=user).prefetch_related(
+            Board.objects.filter(
+                Q(workspace__owner=user) | Q(workspace__members=user)
+            ).prefetch_related(
                 "columns",
                 "columns__tasks",
                 "columns__tasks__assignee",
-            ),
+            ).distinct(),
             id=board_id,
         )
 
@@ -131,7 +142,11 @@ class BoardService:
 
     @staticmethod
     def get_or_404(board_id: UUID, user: User) -> Board:
-        return get_object_or_404(Board, id=board_id, workspace__owner=user)
+        from django.db.models import Q
+        return get_object_or_404(
+            Board, 
+            Q(id=board_id) & (Q(workspace__owner=user) | Q(workspace__members=user))
+        )
 
     @staticmethod
     def update(board: Board, user: User = None, **fields) -> Board:

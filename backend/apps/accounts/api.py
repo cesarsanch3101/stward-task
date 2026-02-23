@@ -31,13 +31,15 @@ router = Router(tags=["auth"])
 )
 def login(request, payload: LoginSchema):
     """Authenticate user and return JWT token pair."""
+    logger.debug("Login attempt for email: %s", payload.email)
     user = authenticate(request, username=payload.email, password=payload.password)
 
     if user is None:
-        logger.info("Failed login attempt for email: %s", payload.email)
+        logger.warning("Failed login attempt - user not found or password incorrect for: %s", payload.email)
         return 401, {"detail": "Credenciales inválidas."}
 
     if not user.is_active:
+        logger.warning("Failed login attempt - inactive user: %s", payload.email)
         return 401, {"detail": "Cuenta desactivada."}
 
     tokens = create_token_pair(user)
@@ -51,19 +53,26 @@ def login(request, payload: LoginSchema):
     auth=None,
 )
 def register(request, payload: RegisterSchema):
-    """Create a new user account and return JWT token pair."""
+    """Create a new user account, a default workspace, and return JWT token pair."""
     if User.objects.filter(email=payload.email).exists():
         return 400, {"detail": "Ya existe una cuenta con ese correo electrónico."}
 
-    user = User.objects.create_user(
-        username=payload.email,
-        email=payload.email,
-        password=payload.password,
-        first_name=payload.first_name,
-        last_name=payload.last_name,
-    )
+    from django.db import transaction
+    from apps.projects.services import WorkspaceService
+
+    with transaction.atomic():
+        user = User.objects.create_user(
+            username=payload.email,
+            email=payload.email,
+            password=payload.password,
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+        )
+        # Create default workspace for new user
+        WorkspaceService.create(user, name="Mi Primer Espacio", description="Espacio creado automáticamente.")
+        
     tokens = create_token_pair(user)
-    logger.info("New user registered: %s", user.email)
+    logger.info("New user registered and default workspace created: %s", user.email)
     return 201, tokens
 
 
