@@ -92,6 +92,12 @@ class TaskCreateSchema(Schema):
     dependency_ids: list[UUID] | None = Field(default_factory=list)
 
 
+class AssignmentProgressItemSchema(Schema):
+    """Individual progress update for one collaborator assignment."""
+    user_id: UUID
+    progress: int = Field(..., ge=0, le=100)
+
+
 class TaskUpdateSchema(Schema):
     title: str | None = Field(None, min_length=1, max_length=500)
     description: str | None = Field(None, max_length=5000)
@@ -104,6 +110,7 @@ class TaskUpdateSchema(Schema):
     assignee_ids: list[UUID] | None = None
     parent_id: UUID | None = None
     dependency_ids: list[UUID] | None = None
+    assignment_progress: list[AssignmentProgressItemSchema] | None = None
 
 
 class TaskMoveSchema(Schema):

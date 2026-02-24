@@ -12,25 +12,32 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Clock, AlertCircle, Users } from "lucide-react";
-import type { Board, Task } from "@/lib/types";
+import { CheckCircle2, Clock, AlertCircle, Users, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Board } from "@/lib/types";
 
 interface Props {
     board: Board;
 }
 
+interface UserWorkload {
+    id: string;
+    name: string;
+    email: string;
+    color: string;
+    total: number;
+    pending: number;
+    inProgress: number;
+    delayed: number;
+    completed: number;
+    avgProgress: number;
+}
+
 const COLORS = ["#0073ea", "#33d391", "#e2445c", "#ffcb00", "#00a9ff", "#9d50bb", "#ff758c"];
-const STATUS_COLORS: Record<string, string> = {
-    pending: "#6B7280",
-    in_progress: "#3B82F6",
-    delayed: "#F97316",
-    completed: "#22C55E",
-};
 
 export function DashboardView({ board }: Props) {
     const allTasks = useMemo(() => {
@@ -40,51 +47,93 @@ export function DashboardView({ board }: Props) {
     const stats = useMemo(() => {
         const total = allTasks.length;
         const completed = allTasks.filter((t) => t.progress === 100).length;
-        const avgProgress = total > 0
-            ? Math.round(allTasks.reduce((acc, t) => acc + (t.total_progress || t.progress || 0), 0) / total)
-            : 0;
+        const delayed = board.columns
+            .filter((col) => col.status === "delayed")
+            .flatMap((col) => col.tasks || []).length;
+        const avgProgress =
+            total > 0
+                ? Math.round(
+                      allTasks.reduce(
+                          (acc, t) => acc + (t.total_progress || t.progress || 0),
+                          0
+                      ) / total
+                  )
+                : 0;
 
-        // Status Data
-        const statusMap: Record<string, number> = {};
-        board.columns.forEach(col => {
-            statusMap[col.name] = (col.tasks || []).length;
-        });
-        const statusData = Object.entries(statusMap).map(([name, value]) => ({ name, value }));
+        // Status distribution (pie chart)
+        const statusData = board.columns
+            .map((col) => ({ name: col.name, value: (col.tasks || []).length }))
+            .filter((d) => d.value > 0);
 
-        // Priority Data
+        // Priority distribution (bar chart)
         const priorityMap: Record<string, number> = {
-            urgent: 0,
-            high: 0,
-            medium: 0,
-            low: 0,
-            none: 0,
+            urgent: 0, high: 0, medium: 0, low: 0, none: 0,
         };
-        allTasks.forEach(t => {
+        allTasks.forEach((t) => {
             priorityMap[t.priority] = (priorityMap[t.priority] || 0) + 1;
         });
         const priorityData = Object.entries(priorityMap)
-            .filter(([_, value]) => value > 0)
+            .filter(([_, v]) => v > 0)
             .map(([name, value]) => ({ name: name.toUpperCase(), value }));
 
-        // Workload Data
-        const userMap: Record<string, number> = {};
-        allTasks.forEach(t => {
-            if (t.assignments && t.assignments.length > 0) {
-                t.assignments.forEach(a => {
-                    const name = a.user.first_name || a.user.email;
-                    userMap[name] = (userMap[name] || 0) + 1;
-                });
-            } else if (t.assignee_name) {
-                userMap[t.assignee_name] = (userMap[t.assignee_name] || 0) + 1;
-            }
-        });
-        const workloadData = Object.entries(userMap).map(([name, value]) => ({ name, value }));
+        // Team workload — detailed per user × status
+        const userMap: Record<string, UserWorkload & { progressSum: number }> = {};
 
-        return { total, completed, avgProgress, statusData, priorityData, workloadData };
+        board.columns.forEach((col) => {
+            (col.tasks || []).forEach((task) => {
+                const register = (
+                    id: string,
+                    name: string,
+                    email: string,
+                    color: string,
+                    progress: number
+                ) => {
+                    if (!userMap[id]) {
+                        userMap[id] = {
+                            id, name, email, color,
+                            total: 0, pending: 0, inProgress: 0,
+                            delayed: 0, completed: 0,
+                            avgProgress: 0, progressSum: 0,
+                        };
+                    }
+                    userMap[id].total += 1;
+                    userMap[id].progressSum += progress;
+                    switch (col.status) {
+                        case "in_progress": userMap[id].inProgress += 1; break;
+                        case "delayed":     userMap[id].delayed += 1;    break;
+                        case "completed":   userMap[id].completed += 1;  break;
+                        default:            userMap[id].pending += 1;    break;
+                    }
+                };
+
+                if (task.assignments && task.assignments.length > 0) {
+                    task.assignments.forEach((a) => {
+                        const name = a.user.first_name
+                            ? `${a.user.first_name} ${a.user.last_name || ""}`.trim()
+                            : a.user.email;
+                        register(a.user.id, name, a.user.email, a.user_color, a.individual_progress);
+                    });
+                } else if (task.assignee_name) {
+                    register(`ext_${task.assignee_name}`, task.assignee_name, "", "#6B7280", task.progress || 0);
+                }
+            });
+        });
+
+        const teamWorkload: UserWorkload[] = Object.values(userMap)
+            .map((u) => ({
+                id: u.id, name: u.name, email: u.email, color: u.color,
+                total: u.total, pending: u.pending, inProgress: u.inProgress,
+                delayed: u.delayed, completed: u.completed,
+                avgProgress: u.total > 0 ? Math.round(u.progressSum / u.total) : 0,
+            }))
+            .sort((a, b) => b.total - a.total);
+
+        return { total, completed, delayed, avgProgress, statusData, priorityData, teamWorkload };
     }, [allTasks, board.columns]);
 
     return (
         <div className="flex-1 overflow-auto bg-slate-50/50 p-6 space-y-6">
+            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                     title="Total Tareas"
@@ -106,16 +155,24 @@ export function DashboardView({ board }: Props) {
                 />
                 <KPICard
                     title="Colaboradores"
-                    value={stats.workloadData.length}
+                    value={stats.teamWorkload.length}
                     icon={<Users className="h-5 w-5 text-purple-500" />}
-                    description="Personas asignadas"
+                    description={
+                        stats.delayed > 0
+                            ? `${stats.delayed} tarea${stats.delayed > 1 ? "s" : ""} retrasada${stats.delayed > 1 ? "s" : ""}`
+                            : "Personas asignadas"
+                    }
+                    alert={stats.delayed > 0}
                 />
             </div>
 
+            {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="shadow-none border border-border/50">
                     <CardHeader>
-                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Distribución por Estado</CardTitle>
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                            Distribución por Estado
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -129,12 +186,11 @@ export function DashboardView({ board }: Props) {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {stats.statusData.map((_, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    {stats.statusData.map((_, i) => (
+                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 <Tooltip />
-                                <Legend verticalAlign="bottom" height={36} />
                             </PieChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -142,7 +198,9 @@ export function DashboardView({ board }: Props) {
 
                 <Card className="shadow-none border border-border/50">
                     <CardHeader>
-                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Carga de Trabajo por Prioridad</CardTitle>
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                            Carga de Trabajo por Prioridad
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -150,45 +208,193 @@ export function DashboardView({ board }: Props) {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                                 <XAxis dataKey="name" fontSize={10} fontWeight="bold" />
                                 <YAxis fontSize={10} />
-                                <Tooltip cursor={{ fill: '#f8fafc' }} />
+                                <Tooltip cursor={{ fill: "#f8fafc" }} />
                                 <Bar dataKey="value" fill="#0073ea" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
+            </div>
 
-                <Card className="shadow-none border border-border/50 lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Carga de Trabajo del Equipo</CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.workloadData} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-                                <XAxis type="number" fontSize={10} />
-                                <YAxis dataKey="name" type="category" fontSize={10} fontWeight="bold" width={100} />
-                                <Tooltip cursor={{ fill: '#f8fafc' }} />
-                                <Bar dataKey="value" fill="#33d391" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
+            {/* Team Workload Table */}
+            <Card className="shadow-none border border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                        Carga del Equipo
+                    </CardTitle>
+                    <Badge variant="secondary" className="text-xs">
+                        {stats.teamWorkload.length} persona{stats.teamWorkload.length !== 1 ? "s" : ""}
+                    </Badge>
+                </CardHeader>
+                <CardContent>
+                    <TeamWorkloadPanel data={stats.teamWorkload} />
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────
+// Team Workload Panel
+// ─────────────────────────────────────────────────
+function TeamWorkloadPanel({ data }: { data: UserWorkload[] }) {
+    if (data.length === 0) {
+        return (
+            <p className="text-center py-8 text-sm text-muted-foreground">
+                No hay usuarios asignados a tareas en este tablero.
+            </p>
+        );
+    }
+
+    return (
+        <div className="space-y-1">
+            {/* Column headers */}
+            <div className="grid grid-cols-[minmax(140px,1fr)_48px_2fr_56px] gap-4 px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50">
+                <span>Usuario</span>
+                <span className="text-center">Tareas</span>
+                <span>Distribución</span>
+                <span className="text-right">Prog.</span>
+            </div>
+
+            {/* Rows */}
+            {data.map((user) => (
+                <div
+                    key={user.id}
+                    className="grid grid-cols-[minmax(140px,1fr)_48px_2fr_56px] gap-4 items-center px-3 py-2.5 rounded-lg hover:bg-muted/40 transition-colors"
+                >
+                    {/* Avatar + name */}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                            className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 select-none"
+                            style={{ backgroundColor: user.color }}
+                        >
+                            {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-sm font-medium leading-tight truncate">{user.name}</p>
+                            {user.email && (
+                                <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                            )}
+                        </div>
+                        {user.delayed > 0 && (
+                            <AlertTriangle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" aria-label="Tiene tareas retrasadas" />
+                        )}
+                    </div>
+
+                    {/* Total */}
+                    <div className="text-center">
+                        <span className="text-sm font-bold tabular-nums">{user.total}</span>
+                    </div>
+
+                    {/* Segmented bar + counts */}
+                    <div className="space-y-1">
+                        <div className="flex h-2.5 rounded-full overflow-hidden gap-px bg-muted/30">
+                            {user.pending > 0 && (
+                                <div
+                                    style={{ width: `${(user.pending / user.total) * 100}%` }}
+                                    className="bg-slate-400"
+                                    title={`Pendiente: ${user.pending}`}
+                                />
+                            )}
+                            {user.inProgress > 0 && (
+                                <div
+                                    style={{ width: `${(user.inProgress / user.total) * 100}%` }}
+                                    className="bg-blue-500"
+                                    title={`En Progreso: ${user.inProgress}`}
+                                />
+                            )}
+                            {user.delayed > 0 && (
+                                <div
+                                    style={{ width: `${(user.delayed / user.total) * 100}%` }}
+                                    className="bg-orange-500"
+                                    title={`Retrasado: ${user.delayed}`}
+                                />
+                            )}
+                            {user.completed > 0 && (
+                                <div
+                                    style={{ width: `${(user.completed / user.total) * 100}%` }}
+                                    className="bg-green-500"
+                                    title={`Completado: ${user.completed}`}
+                                />
+                            )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                            {user.pending > 0 && <span>{user.pending} pend.</span>}
+                            {user.inProgress > 0 && (
+                                <span className="text-blue-600 dark:text-blue-400">{user.inProgress} en progr.</span>
+                            )}
+                            {user.delayed > 0 && (
+                                <span className="text-orange-600 dark:text-orange-400 font-semibold">{user.delayed} retr.</span>
+                            )}
+                            {user.completed > 0 && (
+                                <span className="text-green-600 dark:text-green-400">{user.completed} comp.</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Avg progress */}
+                    <div className="text-right">
+                        <span
+                            className={cn(
+                                "text-sm font-bold tabular-nums",
+                                user.avgProgress >= 75
+                                    ? "text-green-600 dark:text-green-400"
+                                    : user.delayed > 0
+                                    ? "text-orange-600 dark:text-orange-400"
+                                    : user.avgProgress >= 40
+                                    ? "text-blue-600 dark:text-blue-400"
+                                    : "text-foreground"
+                            )}
+                        >
+                            {user.avgProgress}%
+                        </span>
+                    </div>
+                </div>
+            ))}
+
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 pt-3 border-t border-border/50 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-slate-400 inline-block" />
+                    Pendiente
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+                    En Progreso
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />
+                    Retrasado
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
+                    Completado
+                </span>
             </div>
         </div>
     );
 }
 
+// ─────────────────────────────────────────────────
+// KPI Card
+// ─────────────────────────────────────────────────
 interface KPICardProps {
     title: string;
     value: string | number;
     icon: React.ReactNode;
     description?: string;
     progress?: number;
+    alert?: boolean;
 }
 
-function KPICard({ title, value, icon, description, progress }: KPICardProps) {
+function KPICard({ title, value, icon, description, progress, alert }: KPICardProps) {
     return (
-        <Card className="shadow-none border border-border/50 hover:border-primary/30 transition-colors">
+        <Card
+            className={cn(
+                "shadow-none border transition-colors",
+                alert ? "border-orange-300 dark:border-orange-800" : "border-border/50 hover:border-primary/30"
+            )}
+        >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     {title}
@@ -198,7 +404,13 @@ function KPICard({ title, value, icon, description, progress }: KPICardProps) {
             <CardContent>
                 <div className="text-2xl font-bold">{value}</div>
                 {description && (
-                    <p className="text-[11px] text-muted-foreground mt-1">
+                    <p
+                        className={cn(
+                            "text-[11px] mt-1",
+                            alert ? "text-orange-600 dark:text-orange-400 font-medium" : "text-muted-foreground"
+                        )}
+                    >
+                        {alert && <AlertTriangle className="h-3 w-3 inline mr-1" />}
                         {description}
                     </p>
                 )}

@@ -59,17 +59,72 @@
   "
   ```
 
+## Estado Actual del Proyecto
+
+### Sprints completados
+| Sprint | Objetivo | Estado |
+|--------|----------|--------|
+| Sprint 0 | Backend Foundations (auth, service layer, seguridad) | ✅ COMPLETADO |
+| Sprint 1 | Frontend Architecture (TanStack Query, Zustand, hooks) | ✅ COMPLETADO |
+| Sprint 2 | Quality & Security (tests, CI/CD, rate limiting, CSP) | ✅ COMPLETADO |
+| Sprint 3 | Polish & Production (soft-delete, audit, accesibilidad) | ✅ COMPLETADO |
+| Sprint 4 | Collaborative Power (multi-usuario, emails, comentarios) | ✅ COMPLETADO |
+| Sprint 5 | Roles, Visibilidad & Auto-Gestión (check_overdue, GET /users, permisos) | ✅ COMPLETADO |
+
+### Features implementados (resumen)
+- **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
+- **Workspaces y Boards:** CRUD completo con soft-delete y audit trail
+- **Kanban:** Drag & drop (dnd-kit), columnas con estado semántico (Column.status)
+- **Tareas multi-usuario:** `TaskAssignment` — múltiples asignados, colores por usuario, progreso individual editable vía deslizadores por colaborador (`assignment_progress` field en `TaskUpdateSchema`)
+- **Jerarquía de tareas:** `Task.parent` FK (subtareas), `Task.dependencies` M2M (dependencias entre tareas)
+- **Progress automático:** Al mover tarea entre columnas → `round((column.order / (total_columns-1)) * 100)`. COMPLETED siempre = 100%.
+- **Auto-move tareas vencidas:** Celery Beat — `check_overdue_tasks` corre diario a las 00:05, mueve tareas con `end_date < hoy` (fuera de DELAYED/COMPLETED) a la columna "Retrasado" del tablero. Servicio `celery-beat` en Docker Compose.
+- **Comentarios:** `TaskComment` con `source=app|email`, visible en EditTaskDialog
+- **Notificaciones in-app:** Campana en sidebar con badge, polling 30s, tipos: assigned/moved/comment/completed
+- **Emails outbound:** Celery + SMTP (Gmail Workspace), template HTML `task_moved.html`, `send_task_moved_email` + `send_assignment_notification`
+- **Inbound email:** Webhook `POST /api/v1/webhooks/inbound-email` — reply al email crea comentario en la tarea (Reply-To: `task-{uuid}@reply.stwards.com`)
+- **Todos los usuarios en asignaciones:** `GET /api/v1/users` retorna todos los usuarios activos. Hook `useUsers()` con stale 5min. El selector en crear/editar tarea muestra todos los usuarios del sistema (no solo del workspace).
+- **Visibilidad por rol:** Admin/Manager/Staff ven todas las tareas del tablero. Usuarios regulares ven solo las tareas donde son `assignee`, colaborador (`TaskAssignment`) o `created_by`. Implementado con `Prefetch` filtrado en `BoardService.get_detail()`.
+- **Permisos de workspace:** Todos los miembros del workspace (no solo el owner) pueden crear, editar y mover tareas. `Q(owner=user) | Q(members=user)` + `.distinct()` en `TaskService`.
+- **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt
+- **CI/CD:** GitHub Actions (7 jobs: lint → test → build → E2E → SBOM → security scan)
+- **Tests:** 56 backend (pytest, 88% cov) + 18 frontend (Vitest + RTL) + Playwright E2E
+
+### Gotchas críticos
+- **Ninja TestClient** causa "multiple NinjaAPIs" → usar `django.test.Client` con prefijo `/api/v1`
+- **Vitest config** debe usar extensión `.mts` (no `.ts`) para compatibilidad ESM con Vitest 3
+- **Workspace create API** retorna SIN campo `boards` → agregar `boards: []` en cache update
+- **User model** tiene campo `username` (AbstractUser) → `create_user` necesita `username=email`
+- **Task create API** bug histórico: usar `exclude_none=True` en `payload.dict()` para evitar `assignee_name=NULL`
+- **Pagination** cambió formato de respuesta → todos los `setQueryData` en hooks usan `PaginatedResponse<>`
+- **celery-beat** requiere servicio separado en Docker Compose; `docker compose restart` NO aplica cambios de config — usar `--force-recreate`
+- **Celery healthcheck** sin `-d` flag: `["CMD", "celery", "-A", "config.celery", "inspect", "ping"]` — `$HOSTNAME` no expande en arrays CMD de Docker
+- **Visibilidad por rol** usa `Prefetch("columns__tasks", queryset=tasks_qs)` con queryset filtrado — no cambia estructura de la respuesta API
+- **Permisos de workspace**: siempre `Q(owner=user) | Q(members=user)` + `.distinct()` para evitar excluir a miembros no-owner
+- **Demo user:** admin@stwards.com / admin123
+- **DB volume:** Si cambias credenciales en `.env`, ejecutar `docker compose down -v` para recrear el volumen
+
+### Regla de documentación (OBLIGATORIA)
+> Cada vez que se agregue una funcionalidad nueva, se deben actualizar:
+> 1. **CLAUDE.md** — sección "Estado Actual" y "Key Files" si aplica
+> 2. **SPEC.md** — sprint correspondiente, marcar tarea como ✅
+> 3. **MANUAL.md** — documentar la nueva feature desde perspectiva de usuario
+
 ## Key Files
-- `docker-compose.yml` - Service orchestration
-- `backend/config/settings/base.py` - Shared Django settings
+- `docker-compose.yml` - Service orchestration (backend, frontend, db, redis, celery, celery-beat)
+- `backend/config/settings/base.py` - Shared Django settings (incl. CELERY_BEAT_SCHEDULE)
 - `backend/config/settings/development.py` - Dev overrides
 - `backend/config/settings/production.py` - Prod security settings
+- `backend/config/celery.py` - Celery app configuration
 - `backend/apps/accounts/auth.py` - JWT token creation/validation
 - `backend/apps/accounts/api.py` - Auth endpoints (login, register, refresh)
-- `backend/apps/projects/models.py` - Workspace, Board, Column, Task models
-- `backend/apps/projects/services.py` - Business logic (Service Layer)
-- `backend/apps/projects/api.py` - REST endpoints (thin controllers)
-- `backend/apps/projects/schemas.py` - Request/response validation schemas
+- `backend/apps/projects/models.py` - Workspace, Board, Column, Task, TaskAssignment, TaskComment, Notification
+- `backend/apps/projects/services.py` - Business logic (Service Layer) incl. role-based visibility
+- `backend/apps/projects/api.py` - REST endpoints (thin controllers) incl. GET /users
+- `backend/apps/projects/schemas.py` - Request/response validation schemas incl. AssignmentProgressItemSchema
+- `backend/apps/projects/tasks.py` - Celery tasks: send_task_moved_email, check_overdue_tasks
+- `backend/apps/projects/webhooks.py` - Inbound email webhook (POST /api/v1/webhooks/inbound-email)
 - `frontend/src/lib/api.ts` - Frontend API client with JWT
 - `frontend/src/lib/auth.ts` - Token storage/management
 - `frontend/src/lib/types.ts` - TypeScript type definitions
+- `frontend/src/lib/hooks/use-users.ts` - All active users hook (staleTime 5min)

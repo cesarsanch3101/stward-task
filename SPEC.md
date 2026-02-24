@@ -2,7 +2,7 @@
 ## Stward Task — Kanban Board Application
 **Fecha:** 2026-02-17
 **Autor:** AG-ARCHITECT (Mesa Agéntica SASE)
-**Estado:** SPRINT 3 COMPLETADO — Todos los sprints cerrados
+**Estado:** SPRINT 5 COMPLETADO — Todos los sprints cerrados
 
 ---
 
@@ -279,16 +279,44 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-### SPRINT 4 — Collaborative Power (Future)
+### SPRINT 4 — Collaborative Power ✅ COMPLETADO
 > Objetivo: Tareas multi-usuario y notificaciones inteligentes
 
 | Task | Prioridad | Estado |
 |------|-----------|--------|
-| Implementar tabla `TaskAssignment` (M2M con metadata) | HIGH | ⏳ PENDIENTE |
-| Sistema de colores automáticos por usuario | MEDIUM | ⏳ PENDIENTE |
-| Progreso segmentado (Barra de batería/concatenada) | HIGH | ⏳ PENDIENTE |
-| Integración Celery + SMTP para notificaciones email | CRITICAL | ⏳ PENDIENTE |
-| Lógica de "Progreso Maestro" (promedio de asignados) | MEDIUM | ⏳ PENDIENTE |
+| Implementar tabla `TaskAssignment` (M2M con metadata) | HIGH | ✅ migration 0008 |
+| Sistema de colores automáticos por usuario (7 colores Monday-style) | MEDIUM | ✅ `TaskService.sync_assignments()` |
+| Progress automático por posición de columna (`column.order / (total-1) * 100`) | HIGH | ✅ `TaskService.move()` |
+| Integración Celery + Redis + SMTP para emails | CRITICAL | ✅ `config/celery.py`, `tasks.py` |
+| `send_assignment_notification` — email al asignar tarea | HIGH | ✅ `tasks.py` + `signals.py` |
+| `send_task_moved_email` — email al mover tarea, con template HTML | HIGH | ✅ `tasks.py`, `templates/projects/email/task_moved.html` |
+| Sistema de comentarios `TaskComment` (app + email) | HIGH | ✅ migration 0007, `CommentService` |
+| Notificaciones in-app `Notification` con campana en sidebar | HIGH | ✅ `NotificationService`, `notification-bell.tsx` |
+| Inbound email webhook → comentario en tarea | MEDIUM | ✅ `webhooks.py` → `POST /api/v1/webhooks/inbound-email` |
+| Jerarquía de tareas: `Task.parent` FK (subtareas) | MEDIUM | ✅ migration 0009 |
+| Dependencias entre tareas: `Task.dependencies` M2M | MEDIUM | ✅ migration 0009 |
+| Manual de usuario (`MANUAL.md`) | MEDIUM | ✅ 15 secciones en español |
+| Panel "Carga del Equipo" en Dashboard (tabla usuario × estado) | MEDIUM | ✅ `dashboard-view.tsx` — TeamWorkloadPanel |
+
+---
+
+### SPRINT 5 — Roles, Visibilidad & Auto-Gestión ✅ COMPLETADO
+> Objetivo: Control de acceso por rol, auto-mantenimiento del tablero, selector de usuarios global
+
+| Task | Prioridad | Estado |
+|------|-----------|--------|
+| Auto-move tareas vencidas a "Retrasado" (`check_overdue_tasks` Celery Beat, 00:05 diario) | HIGH | ✅ `tasks.py` |
+| Servicio `celery-beat` en Docker Compose + healthcheck disable | HIGH | ✅ `docker-compose.yml` |
+| `CELERY_BEAT_SCHEDULE` en `settings/base.py` (crontab hour=0, minute=5) | HIGH | ✅ |
+| `GET /api/v1/users` — todos los usuarios activos para asignaciones | HIGH | ✅ `api.py` |
+| Hook `useUsers()` en frontend (staleTime 5min, reemplaza `useWorkspaceMembers` en forms) | MEDIUM | ✅ `use-users.ts` |
+| Visibilidad por rol en `BoardService.get_detail()` con `Prefetch` filtrado | HIGH | ✅ `services.py` |
+| — Admin / Manager / Staff: ven TODAS las tareas del tablero | HIGH | ✅ |
+| — Usuario regular: ve solo tareas donde es assignee, colaborador o created_by | HIGH | ✅ |
+| Permisos de workspace extendidos a miembros (no solo owner) en create/update/move | HIGH | ✅ |
+| — `Q(owner=user) \| Q(members=user)` + `.distinct()` en `TaskService` | HIGH | ✅ |
+| `AssignmentProgressItemSchema` — `{user_id, progress}` en `TaskUpdateSchema.assignment_progress` | MEDIUM | ✅ `schemas.py` |
+| Deslizadores por colaborador en `EditTaskDialog` (progreso individual editable) | MEDIUM | ✅ `edit-task-dialog.tsx` |
 
 ---
 
@@ -343,4 +371,6 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-> **✅ Sprints 0-3 completados y validados. Aplicación production-ready.**
+> **✅ Sprints 0-5 completados y validados. Aplicación production-ready con sistema colaborativo, notificaciones, emails, visibilidad por rol y auto-gestión de tareas vencidas.**
+>
+> **Regla de documentación:** Cada feature nueva debe actualizar CLAUDE.md (Estado Actual) + SPEC.md (sprint) + MANUAL.md (usuario).

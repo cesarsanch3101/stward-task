@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { useUpdateTask, useDeleteTask } from "@/lib/hooks/use-tasks";
 import { useBoard } from "@/lib/hooks/use-board";
-import { useWorkspaceMembers } from "@/lib/hooks/use-workspaces";
+import { useUsers } from "@/lib/hooks/use-users";
 import { taskSchema, type TaskFormData } from "@/lib/schemas";
 import { CommentSection } from "./comment-section";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -57,8 +57,12 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
   const deleteMutation = useDeleteTask(boardId);
 
   const boardQuery = useBoard(boardId);
-  const workspaceId = boardQuery.data?.workspace_id;
-  const membersQuery = useWorkspaceMembers(workspaceId);
+  const usersQuery = useUsers();
+
+  // Local state for individual assignment progress (keyed by user_id)
+  const [assignmentProgress, setAssignmentProgress] = useState<Record<string, number>>(() =>
+    Object.fromEntries((task.assignments || []).map((a) => [a.user.id, a.individual_progress]))
+  );
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -75,6 +79,13 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
       dependency_ids: task.dependency_ids ?? [],
     },
   });
+
+  // Sync assignment progress when task changes
+  useEffect(() => {
+    setAssignmentProgress(
+      Object.fromEntries((task.assignments || []).map((a) => [a.user.id, a.individual_progress]))
+    );
+  }, [task]);
 
   // Sync form when task prop changes (fixes stale state bug F13)
   useEffect(() => {
@@ -93,6 +104,10 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
   }, [task, form.reset]);
 
   const onSubmit = form.handleSubmit((data) => {
+    const ap = Object.entries(assignmentProgress).map(([user_id, progress]) => ({
+      user_id,
+      progress,
+    }));
     updateMutation.mutate(
       {
         id: task.id,
@@ -107,6 +122,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
           assignee_ids: data.assignee_ids,
           parent_id: data.parent_id,
           dependency_ids: data.dependency_ids,
+          assignment_progress: ap.length > 0 ? ap : undefined,
         },
       },
       {
@@ -183,7 +199,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                   <div className="border rounded-md p-2 bg-muted/20">
                     <ScrollArea className="h-[100px]">
                       <div className="space-y-2 pr-4">
-                        {membersQuery.data?.map((member) => (
+                        {usersQuery.data?.map((member) => (
                           <div key={member.id} className="flex items-center gap-2">
                             <Checkbox
                               id={`member-${member.id}`}

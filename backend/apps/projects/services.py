@@ -65,8 +65,9 @@ class WorkspaceService:
         """Get workspace ensuring user has access (owner or member)."""
         from django.db.models import Q
         return get_object_or_404(
-            Workspace, 
-            Q(id=workspace_id) & (Q(owner=user) | Q(members=user))
+            Workspace.objects.filter(
+                Q(id=workspace_id) & (Q(owner=user) | Q(members=user))
+            ).distinct()
         )
 
     @staticmethod
@@ -101,15 +102,34 @@ class BoardService:
 
     @staticmethod
     def get_detail(board_id: UUID, user: User) -> Board:
-        """Get board with full column/task tree, ensuring user access (owner or member)."""
-        from django.db.models import Q
+        """
+        Get board with full column/task tree.
+        - Admins / Managers see all tasks.
+        - Other roles see only tasks where they are assignee, collaborator, or creator.
+        """
+        from django.db.models import Prefetch, Q
+        from apps.accounts.models import User as UserModel
+
+        is_privileged = (
+            user.is_staff
+            or user.is_superuser
+            or user.role in (UserModel.UserRole.ADMIN, UserModel.UserRole.MANAGER)
+        )
+
+        tasks_qs = Task.objects.select_related("assignee").prefetch_related(
+            "assignments__user", "dependencies"
+        )
+        if not is_privileged:
+            tasks_qs = tasks_qs.filter(
+                Q(assignee=user) | Q(assignments__user=user) | Q(created_by=user)
+            ).distinct()
+
         return get_object_or_404(
             Board.objects.filter(
                 Q(workspace__owner=user) | Q(workspace__members=user)
             ).prefetch_related(
                 "columns",
-                "columns__tasks",
-                "columns__tasks__assignee",
+                Prefetch("columns__tasks", queryset=tasks_qs),
             ).distinct(),
             id=board_id,
         )
@@ -144,8 +164,9 @@ class BoardService:
     def get_or_404(board_id: UUID, user: User) -> Board:
         from django.db.models import Q
         return get_object_or_404(
-            Board, 
-            Q(id=board_id) & (Q(workspace__owner=user) | Q(workspace__members=user))
+            Board.objects.filter(
+                Q(id=board_id) & (Q(workspace__owner=user) | Q(workspace__members=user))
+            ).distinct()
         )
 
     @staticmethod
@@ -228,7 +249,13 @@ class TaskService:
         """Create a task, ensuring user owns the parent board."""
         assignee_ids = task_data.pop("assignee_ids", [])
         dependency_ids = task_data.pop("dependency_ids", [])
-        column = get_object_or_404(Column, id=column_id, board__workspace__owner=user)
+        from django.db.models import Q
+        column = get_object_or_404(
+            Column.objects.filter(
+                Q(board__workspace__owner=user) | Q(board__workspace__members=user)
+            ).distinct(),
+            id=column_id,
+        )
         
         with transaction.atomic():
             task = Task.objects.create(column=column, created_by=user, **task_data)
@@ -242,10 +269,15 @@ class TaskService:
 
     @staticmethod
     def get_or_404(task_id: UUID, user: User) -> Task:
+        from django.db.models import Q
         return get_object_or_404(
-            Task.objects.select_related("column", "column__board", "column__board__workspace"),
+            Task.objects.select_related(
+                "column", "column__board", "column__board__workspace"
+            ).filter(
+                Q(column__board__workspace__owner=user)
+                | Q(column__board__workspace__members=user)
+            ).distinct(),
             id=task_id,
-            column__board__workspace__owner=user,
         )
 
     @staticmethod
@@ -253,6 +285,7 @@ class TaskService:
         update_fields = ["updated_at"]
         assignee_ids = fields.pop("assignee_ids", None)
         dependency_ids = fields.pop("dependency_ids", None)
+        assignment_progress = fields.pop("assignment_progress", None)
         
         if user:
             task.updated_by = user
@@ -275,7 +308,12 @@ class TaskService:
                 TaskService.sync_assignments(task, assignee_ids)
             if dependency_ids is not None:
                 task.dependencies.set(dependency_ids)
-                
+            if assignment_progress is not None:
+                for item in assignment_progress:
+                    TaskAssignment.objects.filter(
+                        task=task, user_id=item["user_id"]
+                    ).update(individual_progress=item["progress"])
+
         task.refresh_from_db()
         return task
 
@@ -318,8 +356,12 @@ class TaskService:
         Move task to a target column at a given position.
         Handles reordering and auto-date logic based on Column.status.
         """
+        from django.db.models import Q
         target_column = get_object_or_404(
-            Column, id=column_id, board__workspace__owner=user
+            Column.objects.filter(
+                Q(board__workspace__owner=user) | Q(board__workspace__members=user)
+            ).distinct(),
+            id=column_id,
         )
         old_column = task.column
 

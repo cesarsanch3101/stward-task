@@ -84,6 +84,16 @@ def list_workspace_members(request, workspace_id: UUID):
 
 
 # ─────────────────────────────────────────────────
+# Users (global list for task assignment)
+# ─────────────────────────────────────────────────
+@router.get("/users", response=list[UserMinimalSchema], tags=["users"])
+def list_all_users(request):
+    """Returns all active users available for task assignment."""
+    from apps.accounts.models import User as UserModel
+    return UserModel.objects.filter(is_active=True).order_by("first_name", "last_name")
+
+
+# ─────────────────────────────────────────────────
 # Boards
 # ─────────────────────────────────────────────────
 @router.get("/boards", response=list[BoardSchema], tags=["boards"])

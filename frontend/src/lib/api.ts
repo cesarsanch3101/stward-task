@@ -178,6 +178,10 @@ export function getWorkspaceMembers(workspaceId: string) {
   return fetcher<User[]>(`/workspaces/${workspaceId}/members`);
 }
 
+export function getAllUsers() {
+  return fetcher<User[]>("/users");
+}
+
 // ─── Boards ──────────────────────────────────────
 export function getBoards() {
   return fetcher<PaginatedResponse<BoardSummary>>("/boards");
@@ -248,6 +252,9 @@ export function updateTask(
     end_date?: string | null;
     progress?: number;
     assignee_ids?: string[];
+    parent_id?: string | null;
+    dependency_ids?: string[];
+    assignment_progress?: { user_id: string; progress: number }[];
   }
 ) {
   return fetcher<Task>(`/tasks/${taskId}`, {

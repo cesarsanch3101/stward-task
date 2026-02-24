@@ -22,8 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateTask } from "@/lib/hooks/use-tasks";
-import { useBoard } from "@/lib/hooks/use-board";
-import { useWorkspaceMembers } from "@/lib/hooks/use-workspaces";
+import { useUsers } from "@/lib/hooks/use-users";
 import { taskSchema, type TaskFormData } from "@/lib/schemas";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,9 +40,7 @@ interface Props {
 export function CreateTaskDialog({ columnId, boardId }: Props) {
   const [open, setOpen] = useState(false);
   const createMutation = useCreateTask(boardId);
-  const boardQuery = useBoard(boardId);
-  const workspaceId = boardQuery.data?.workspace_id;
-  const membersQuery = useWorkspaceMembers(workspaceId);
+  const usersQuery = useUsers();
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -150,7 +147,7 @@ export function CreateTaskDialog({ columnId, boardId }: Props) {
                   <div className="border rounded-md p-2 bg-muted/20">
                     <ScrollArea className="h-[100px]">
                       <div className="space-y-2 pr-4">
-                        {membersQuery.data?.map((member) => (
+                        {usersQuery.data?.map((member) => (
                           <div key={member.id} className="flex items-center gap-2">
                             <Checkbox
                               id={`create-member-${member.id}`}

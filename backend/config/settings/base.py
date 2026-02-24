@@ -161,6 +161,15 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
+# Periodic tasks (celery beat)
+from celery.schedules import crontab  # noqa: E402
+CELERY_BEAT_SCHEDULE = {
+    "check-overdue-tasks-daily": {
+        "task": "apps.projects.tasks.check_overdue_tasks",
+        "schedule": crontab(hour=0, minute=5),  # Every day at 00:05
+    },
+}
+
 # ──────────────────────────────────────────────
 # Email
 # ──────────────────────────────────────────────

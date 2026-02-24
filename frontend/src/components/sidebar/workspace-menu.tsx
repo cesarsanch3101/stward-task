@@ -107,7 +107,7 @@ export function WorkspaceMenu({ workspace }: Props) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-slate-400 hover:text-slate-700"
+            className="h-6 w-6 text-white/60 hover:text-white hover:bg-white/10"
           >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
