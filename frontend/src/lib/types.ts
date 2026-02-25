@@ -23,6 +23,13 @@ export type ColumnStatus =
   | "completed"
   | "custom";
 
+export interface Subtask {
+  id: string;
+  title: string;
+  progress: number;
+  assignee: User | null;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -37,6 +44,7 @@ export interface Task {
   progress: number;
   total_progress: number;
   assignments: TaskAssignment[];
+  subtasks: Subtask[];
   parent_id: string | null;
   dependency_ids: string[];
   created_at: string;

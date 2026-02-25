@@ -401,9 +401,23 @@ La tarea aparece al final de la columna seleccionada.
 - **Tarea Padre:** Agrupa esta tarea bajo otra (para crear hitos o grupos)
   - Selecciona una tarea del mismo tablero como padre
   - Útil para crear jerarquías: Épica → Tarea → Subtarea
+  - > ⚠️ **Bloqueo:** La tarea hijo no puede avanzar (moverse a una columna posterior) hasta que la tarea padre esté al **100%** de progreso.
 - **Dependencias:** Tareas que deben completarse antes que esta
   - Selecciona una o varias tareas como prerrequisito
   - Se visualizan en la vista Gantt
+  - > ⚠️ **Bloqueo:** La tarea no puede avanzar hasta que **todas sus dependencias** estén al 100%.
+
+**Subtareas:**
+- Haz clic en **"+"** junto al encabezado "Subtareas" para agregar una nueva subtarea
+- Escribe el título y selecciona el colaborador responsable en el desplegable
+- Haz clic en **"Crear"** — la subtarea aparece en la lista (NO en el tablero)
+- Cada subtarea muestra: título, avatar del colaborador asignado, 4 pills de estado y una mini barra de progreso con color
+- Cambia el estado de la subtarea haciendo clic en el pill correspondiente:
+  - **Pendiente** (gris) → 0% de avance
+  - **En Proceso** (azul) → 50% de avance
+  - **Retrasado** (naranja) → 25% de avance
+  - **Completado** (verde) → 100% de avance
+- Al cambiar el estado, el progreso del colaborador asignado en la sección "Progreso por Colaborador" se actualiza automáticamente de forma proporcional
 
 **Progreso:**
 - *Con múltiples colaboradores:* Cada persona tiene su propio deslizador de progreso individual. El progreso total se calcula automáticamente como el promedio.
@@ -455,9 +469,11 @@ Stward Task soporta la asignación de **múltiples colaboradores** a cada tarea,
 Cuando una tarea tiene múltiples colaboradores:
 
 - Cada colaborador tiene su **propia barra de progreso** (con color distintivo)
-- Puedes ajustar el progreso de cada persona de forma independiente
+- Puedes ajustar el progreso de cada persona de forma independiente con el deslizador
 - El **Progreso Total** es el promedio del progreso de todos los colaboradores
 - En la tarjeta Kanban, la barra se segmenta mostrando el avance de cada persona con su color
+
+> **Progreso automático vía subtareas:** Si asignas subtareas a los colaboradores, el sistema calcula automáticamente su progreso individual según cuántas subtareas suyas estén en la columna "Completado" (método binario: subtarea completada = 100%). Los deslizadores manuales siguen disponibles para casos donde no hay subtareas.
 
 ### 10.3 Colores de colaboradores
 
@@ -639,7 +655,32 @@ El sistema revisa diariamente (a las 00:05 horas) si existen tareas cuya **fecha
 
 > Este proceso corre en segundo plano. Al llegar al trabajo al día siguiente, las tareas vencidas ya estarán en la columna correcta.
 
-### 14.5 Correos automáticos
+### 14.5 Progreso automático por subtareas
+
+Cuando asignas subtareas a los colaboradores de una tarea principal, el sistema recalcula automáticamente el progreso individual de cada persona al cambiar el estado de una subtarea:
+
+**Método proporcional:**
+- Cada estado de subtarea tiene un valor de progreso:
+  - Pendiente → 0% · En Proceso → 50% · Retrasado → 25% · Completado → 100%
+- El progreso del colaborador = promedio de sus subtareas
+
+**Condiciones:**
+- Solo aplica a colaboradores que tienen al menos una subtarea asignada
+- Los colaboradores sin subtareas conservan su progreso manual intacto
+- El recálculo ocurre al cambiar el estado de cualquier subtarea
+
+**Ejemplo:**
+```
+Tarea "Proyecto Web" con colaboradores A, B, C
+
+A tiene: "Diseño" (En Proceso=50%), "Wireframes" (Completado=100%) → (50+100)/2 = 75%
+B tiene: "Backend API" (Completado=100%)                           → 100%
+C tiene: "Testing" (Retrasado=25%)                                 → 25%
+
+Progreso Total de "Proyecto Web" = (75 + 100 + 25) / 3 = 67%
+```
+
+### 14.6 Correos automáticos
 
 Los correos se envían en segundo plano (no bloquean la interfaz):
 
@@ -694,6 +735,9 @@ Sí, no hay límite de tableros por espacio de trabajo.
 **¿Qué pasa si elimino una tarea padre?**
 Las subtareas quedan sin padre pero no se eliminan.
 
+**¿Por qué no puedo mover mi tarea a la siguiente columna?**
+Si la tarea tiene una tarea padre o dependencias, el sistema bloquea el avance hasta que esas tareas estén al 100%. Completa primero las tareas bloqueantes y luego intenta mover de nuevo. Mover hacia atrás (columnas anteriores) siempre está permitido.
+
 **¿Puedo asignar una tarea a alguien que no está en el sistema?**
 Sí, existe un campo "Asignado a (externo)" para escribir el nombre de una persona sin cuenta.
 
@@ -713,7 +757,7 @@ Sí, si el administrador tiene configurada la integración de correo entrante. A
 No hay límite definido, aunque se recomiendan máximo 7-10 para que la barra de progreso sea legible.
 
 **¿Las dependencias entre tareas bloquean el flujo?**
-Las dependencias son informativas en esta versión — se visualizan en el Gantt pero no impiden mover tareas de forma prematura.
+Sí. Si una tarea tiene dependencias, no puede moverse a una columna más avanzada hasta que todas sus dependencias estén al 100% de progreso. El sistema mostrará un mensaje de error con el nombre de las dependencias pendientes.
 
 ---
 

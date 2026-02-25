@@ -47,6 +47,16 @@ class TaskAssignmentSchema(Schema):
 
 
 # ─────────────────────────────────────────────────
+# Subtask (lightweight, for nesting inside TaskSchema)
+# ─────────────────────────────────────────────────
+class SubtaskSchema(Schema):
+    id: UUID
+    title: str
+    progress: int
+    assignee: UserMinimalSchema | None = None
+
+
+# ─────────────────────────────────────────────────
 # Task
 # ─────────────────────────────────────────────────
 class TaskSchema(Schema):
@@ -65,6 +75,7 @@ class TaskSchema(Schema):
     parent_id: UUID | None = None
     dependency_ids: list[UUID] = []
     assignments: list[TaskAssignmentSchema] = []
+    subtasks: list[SubtaskSchema] = []
     created_at: datetime
     updated_at: datetime
 

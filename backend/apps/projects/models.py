@@ -309,7 +309,7 @@ class Task(TimeStampedModel, SoftDeleteModel, AuditMixin):
             return self.progress
         
         progresses = [a.individual_progress for a in assignments]
-        return sum(progresses) // len(progresses)
+        return round(sum(progresses) / len(progresses))
 
     def __str__(self):
         return self.title

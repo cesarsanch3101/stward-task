@@ -267,6 +267,23 @@ export function deleteTask(taskId: string) {
   return fetchNoContent(`/tasks/${taskId}`, { method: "DELETE" });
 }
 
+export function createSubtask(
+  columnId: string,
+  parentId: string,
+  title: string,
+  assigneeId: string
+) {
+  return fetcher<Task>("/tasks", {
+    method: "POST",
+    body: JSON.stringify({
+      column_id: columnId,
+      title,
+      assignee_id: assigneeId || undefined,
+      parent_id: parentId,
+    }),
+  });
+}
+
 // ─── Columns ────────────────────────────────────
 export function updateColumn(
   columnId: string,

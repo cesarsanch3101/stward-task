@@ -70,6 +70,7 @@
 | Sprint 3 | Polish & Production (soft-delete, audit, accesibilidad) | ✅ COMPLETADO |
 | Sprint 4 | Collaborative Power (multi-usuario, emails, comentarios) | ✅ COMPLETADO |
 | Sprint 5 | Roles, Visibilidad & Auto-Gestión (check_overdue, GET /users, permisos) | ✅ COMPLETADO |
+| Sprint 6 | Progreso Automático por Subtareas (SubtaskSchema, recalculate_parent_progress) | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -86,6 +87,8 @@
 - **Todos los usuarios en asignaciones:** `GET /api/v1/users` retorna todos los usuarios activos. Hook `useUsers()` con stale 5min. El selector en crear/editar tarea muestra todos los usuarios del sistema (no solo del workspace).
 - **Visibilidad por rol:** Admin/Manager/Staff ven todas las tareas del tablero. Usuarios regulares ven solo las tareas donde son `assignee`, colaborador (`TaskAssignment`) o `created_by`. Implementado con `Prefetch` filtrado en `BoardService.get_detail()`.
 - **Permisos de workspace:** Todos los miembros del workspace (no solo el owner) pueden crear, editar y mover tareas. `Q(owner=user) | Q(members=user)` + `.distinct()` en `TaskService`.
+- **Bloqueo de avance por padre/dependencias:** Al mover una tarea hacia adelante (columna con `order` mayor), `TaskService.move()` valida: (1) si tiene tarea padre, el padre debe tener `progress >= 100`; (2) si tiene dependencias, todas deben tener `progress >= 100`. Mover hacia atrás no está bloqueado.
+- **Subtareas internas con progreso proporcional (Sprint 6):** Las subtareas son `Task` objetos con `parent_id` pero **NO aparecen en el tablero Kanban** (`parent_id__isnull=True` en `BoardService.get_detail()`). Se gestionan desde el panel "Subtareas" en `EditTaskDialog`. Cada subtarea tiene 4 estados (Pendiente=0% / En Proceso=50% / Retrasado=25% / Completado=100%) seleccionables con pills de color. `recalculate_parent_progress()` usa **promedio proporcional** (no binario): `round(sum(st.progress) / len(subtasks))`. `createSubtask()` usa `assignee_id` (FK singular). `SubtaskSchema` expone `id, title, progress, assignee`.
 - **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt
 - **CI/CD:** GitHub Actions (7 jobs: lint → test → build → E2E → SBOM → security scan)
 - **Tests:** 56 backend (pytest, 88% cov) + 18 frontend (Vitest + RTL) + Playwright E2E
@@ -101,6 +104,12 @@
 - **Celery healthcheck** sin `-d` flag: `["CMD", "celery", "-A", "config.celery", "inspect", "ping"]` — `$HOSTNAME` no expande en arrays CMD de Docker
 - **Visibilidad por rol** usa `Prefetch("columns__tasks", queryset=tasks_qs)` con queryset filtrado — no cambia estructura de la respuesta API
 - **Permisos de workspace**: siempre `Q(owner=user) | Q(members=user)` + `.distinct()` para evitar excluir a miembros no-owner
+- **Bloqueo de avance**: `HttpError(400, msg)` en `TaskService.move()` cuando padre o dependencia `progress < 100`. Frontend parsea `body.detail` del error para mostrar el mensaje específico en toast.
+- **recalculate_parent_progress**: proporcional — `round(sum(st.progress) / len(subtasks))`. Solo actualiza asignaciones donde el usuario tiene al menos una subtarea asignada; sin subtareas → progreso manual intacto.
+- **Subtareas NO visibles en tablero**: `parent_id__isnull=True` en `tasks_qs` de `BoardService.get_detail()` — las subtareas existen en DB pero se filtran del tablero. Se crean en primera columna pero nunca se muestran como tarjetas.
+- **Mapeo estado→progreso en subtareas**: Pendiente=0, En Proceso=50, Retrasado=25, Completado=100. `progressToSubtaskStatus()` en `edit-task-dialog.tsx`: 0→pending, <40→delayed, <100→in_progress, 100→completed.
+- **createSubtask usa `assignee_id`** (FK directo, no array) para que `recalculate_parent_progress` pueda leer `subtask.assignee_id`.
+- **Regex `/s` flag**: No compatible con TS target por defecto → usar `[\s\S]` en lugar de `.` con flag `s`.
 - **Demo user:** admin@stwards.com / admin123
 - **DB volume:** Si cambias credenciales en `.env`, ejecutar `docker compose down -v` para recrear el volumen
 

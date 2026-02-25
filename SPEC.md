@@ -2,7 +2,7 @@
 ## Stward Task — Kanban Board Application
 **Fecha:** 2026-02-17
 **Autor:** AG-ARCHITECT (Mesa Agéntica SASE)
-**Estado:** SPRINT 5 COMPLETADO — Todos los sprints cerrados
+**Estado:** SPRINT 6 COMPLETADO — Todos los sprints cerrados
 
 ---
 
@@ -317,6 +317,30 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 | — `Q(owner=user) \| Q(members=user)` + `.distinct()` en `TaskService` | HIGH | ✅ |
 | `AssignmentProgressItemSchema` — `{user_id, progress}` en `TaskUpdateSchema.assignment_progress` | MEDIUM | ✅ `schemas.py` |
 | Deslizadores por colaborador en `EditTaskDialog` (progreso individual editable) | MEDIUM | ✅ `edit-task-dialog.tsx` |
+| Bloqueo de avance por tarea padre: `progress < 100` → `HttpError(400)` en `TaskService.move()` | HIGH | ✅ `services.py` |
+| Bloqueo de avance por dependencias: todas deben tener `progress >= 100` antes de avanzar | HIGH | ✅ `services.py` |
+| Frontend: mensaje de error específico en toast al intentar avanzar tarea bloqueada | MEDIUM | ✅ `use-tasks.ts` |
+
+---
+
+### SPRINT 6 — Subtareas Internas con Progreso Proporcional ✅ COMPLETADO
+
+**Objetivo:** Subtareas gestionadas internamente (no visibles en el tablero Kanban), con 4 estados visuales (Pendiente/En Proceso/Retrasado/Completado) y progreso proporcional automático para el colaborador asignado.
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| `SubtaskSchema` simplificado (`id, title, progress, assignee`) en `schemas.py` | HIGH | ✅ `schemas.py` |
+| `BoardService.get_detail()`: `parent_id__isnull=True` — subtareas NO en tablero | HIGH | ✅ `services.py` |
+| `TaskService.recalculate_parent_progress()` — promedio proporcional | HIGH | ✅ `services.py` |
+| Hook en `TaskService.move()` + `update()` → llama a `recalculate_parent_progress` | HIGH | ✅ `services.py` |
+| Prefetch `subtasks__assignee` en `BoardService.get_detail()` | MEDIUM | ✅ `services.py` |
+| `Subtask` type en `types.ts` + campo `subtasks: Subtask[]` en `Task` | HIGH | ✅ `types.ts` |
+| `createSubtask()` en `api.ts` con `assignee_id` singular (FK directo) | HIGH | ✅ `api.ts` |
+| Panel "Subtareas" en `EditTaskDialog`: 4 pills de estado + mini barra de progreso | HIGH | ✅ `edit-task-dialog.tsx` |
+| Helpers `SUBTASK_STATUSES`, `progressToSubtaskStatus()` en `edit-task-dialog.tsx` | MEDIUM | ✅ `edit-task-dialog.tsx` |
+
+**Mapeo estado→progreso:** Pendiente=0% · En Proceso=50% · Retrasado=25% · Completado=100%
+**Cálculo:** `round(sum(st.progress for st in user_subtasks) / len(user_subtasks))`
 
 ---
 
@@ -371,6 +395,6 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-> **✅ Sprints 0-5 completados y validados. Aplicación production-ready con sistema colaborativo, notificaciones, emails, visibilidad por rol y auto-gestión de tareas vencidas.**
+> **✅ Sprints 0-6 completados y validados. Aplicación production-ready con sistema colaborativo, notificaciones, emails, visibilidad por rol, auto-gestión de tareas vencidas y progreso automático por subtareas.**
 >
 > **Regla de documentación:** Cada feature nueva debe actualizar CLAUDE.md (Estado Actual) + SPEC.md (sprint) + MANUAL.md (usuario).

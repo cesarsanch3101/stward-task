@@ -10,6 +10,7 @@ from uuid import UUID
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404
+from ninja.errors import HttpError
 
 from apps.accounts.models import User
 
@@ -116,8 +117,12 @@ class BoardService:
             or user.role in (UserModel.UserRole.ADMIN, UserModel.UserRole.MANAGER)
         )
 
-        tasks_qs = Task.objects.select_related("assignee").prefetch_related(
-            "assignments__user", "dependencies"
+        tasks_qs = Task.objects.filter(
+            parent_id__isnull=True,         # subtareas no aparecen en el tablero
+        ).select_related("assignee").prefetch_related(
+            "assignments__user",
+            "dependencies",
+            "subtasks__assignee",
         )
         if not is_privileged:
             tasks_qs = tasks_qs.filter(
@@ -315,6 +320,11 @@ class TaskService:
                     ).update(individual_progress=item["progress"])
 
         task.refresh_from_db()
+
+        # If this is a subtask, recalculate parent's per-user progress
+        if task.parent_id:
+            TaskService.recalculate_parent_progress(task)
+
         return task
 
     @staticmethod
@@ -337,6 +347,39 @@ class TaskService:
                         user_id=uid,
                         user_color=random.choice(COLORS)
                     )
+
+    @staticmethod
+    def recalculate_parent_progress(subtask: Task) -> None:
+        """
+        When a subtask changes column, recalculate individual_progress for the
+        assigned user on the parent task (binary: COMPLETED = 100%, else 0%).
+        Only updates assignments where the user has at least one subtask assigned.
+        """
+        if not subtask.parent_id or not subtask.assignee_id:
+            return
+
+        parent_assignments = TaskAssignment.objects.filter(
+            task_id=subtask.parent_id
+        )
+        if not parent_assignments.exists():
+            return
+
+        all_subtasks = list(
+            Task.objects.filter(
+                parent_id=subtask.parent_id,
+                deleted_at__isnull=True,
+            ).select_related("assignee")
+        )
+
+        for assignment in parent_assignments:
+            user_subtasks = [st for st in all_subtasks if st.assignee_id == assignment.user_id]
+            if not user_subtasks:
+                continue  # no subtasks for this user → leave manual progress intact
+            # Proportional: average the progress values of each user's subtasks
+            new_progress = round(sum(st.progress for st in user_subtasks) / len(user_subtasks))
+            if new_progress != assignment.individual_progress:
+                assignment.individual_progress = new_progress
+                assignment.save(update_fields=["individual_progress", "updated_at"])
 
     @staticmethod
     def delete(task: Task, user: User = None) -> None:
@@ -364,6 +407,31 @@ class TaskService:
             id=column_id,
         )
         old_column = task.column
+
+        # ── Bloqueo de avance: solo aplica al mover hacia columnas posteriores ──
+        if target_column.order > old_column.order:
+            # 1. Verificar tarea padre
+            if task.parent_id:
+                parent = Task.objects.only("title", "progress").get(id=task.parent_id)
+                if parent.progress < 100:
+                    raise HttpError(
+                        400,
+                        f"La tarea padre «{parent.title}» debe completarse al 100% antes de avanzar esta tarea.",
+                    )
+
+            # 2. Verificar dependencias (todas deben estar al 100%)
+            incomplete_titles = list(
+                task.dependencies
+                .filter(progress__lt=100)
+                .values_list("title", flat=True)[:4]
+            )
+            if incomplete_titles:
+                displayed = incomplete_titles[:3]
+                extra = len(incomplete_titles) - len(displayed)
+                msg = "Dependencias sin completar: " + ", ".join(f"«{t}»" for t in displayed)
+                if extra > 0:
+                    msg += f" y {extra} más"
+                raise HttpError(400, msg)
 
         with transaction.atomic():
             # Make room in target column
@@ -413,6 +481,9 @@ class TaskService:
 
         task.refresh_from_db()
         logger.info("Task %s moved to column %s at position %d", task.id, target_column.id, new_order)
+
+        # If this is a subtask, recalculate parent's per-user progress
+        TaskService.recalculate_parent_progress(task)
 
         # Create in-app notifications and send email when task changes column
         if old_column.id != target_column.id:

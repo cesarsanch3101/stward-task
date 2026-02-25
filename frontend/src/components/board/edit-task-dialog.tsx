@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -32,8 +33,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUpdateTask, useDeleteTask } from "@/lib/hooks/use-tasks";
-import { useBoard } from "@/lib/hooks/use-board";
+import { useBoard, boardKeys } from "@/lib/hooks/use-board";
 import { useUsers } from "@/lib/hooks/use-users";
+import * as api from "@/lib/api";
 import { taskSchema, type TaskFormData } from "@/lib/schemas";
 import { CommentSection } from "./comment-section";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -43,6 +45,28 @@ import type { Task } from "@/lib/types";
 
 function getInitials(name: string) {
   return name.slice(0, 2).toUpperCase();
+}
+
+type SubtaskStatus = "pending" | "in_progress" | "delayed" | "completed";
+
+const SUBTASK_STATUSES: {
+  key: SubtaskStatus;
+  label: string;
+  progress: number;
+  activeClass: string;
+  barClass: string;
+}[] = [
+  { key: "pending",     label: "Pendiente",  progress: 0,   activeClass: "bg-gray-200 text-gray-700",     barClass: "bg-gray-400"   },
+  { key: "in_progress", label: "En Proceso", progress: 50,  activeClass: "bg-blue-100 text-blue-700",     barClass: "bg-blue-500"   },
+  { key: "delayed",     label: "Retrasado",  progress: 25,  activeClass: "bg-orange-100 text-orange-700", barClass: "bg-orange-500" },
+  { key: "completed",   label: "Completado", progress: 100, activeClass: "bg-green-100 text-green-700",   barClass: "bg-green-500"  },
+];
+
+function progressToSubtaskStatus(progress: number): SubtaskStatus {
+  if (progress === 0)   return "pending";
+  if (progress === 100) return "completed";
+  if (progress < 40)    return "delayed";
+  return "in_progress";
 }
 
 interface Props {
@@ -55,6 +79,7 @@ interface Props {
 export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
   const updateMutation = useUpdateTask(boardId);
   const deleteMutation = useDeleteTask(boardId);
+  const queryClient = useQueryClient();
 
   const boardQuery = useBoard(boardId);
   const usersQuery = useUsers();
@@ -63,6 +88,32 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
   const [assignmentProgress, setAssignmentProgress] = useState<Record<string, number>>(() =>
     Object.fromEntries((task.assignments || []).map((a) => [a.user.id, a.individual_progress]))
   );
+
+  // Subtask creation state
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<string>("");
+  const [showSubtaskForm, setShowSubtaskForm] = useState(false);
+
+  const createSubtaskMutation = useMutation({
+    mutationFn: () => {
+      const firstColumnId = boardQuery.data?.columns[0]?.id ?? "";
+      return api.createSubtask(firstColumnId, task.id, newSubtaskTitle, newSubtaskAssignee);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+      setNewSubtaskTitle("");
+      setNewSubtaskAssignee("");
+      setShowSubtaskForm(false);
+    },
+  });
+
+  const updateSubtaskMutation = useMutation({
+    mutationFn: ({ subtaskId, progress }: { subtaskId: string; progress: number }) =>
+      api.updateTask(subtaskId, { progress }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+    },
+  });
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
@@ -108,6 +159,10 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
       user_id,
       progress,
     }));
+    const computedProgress =
+      ap.length > 0
+        ? Math.round(ap.reduce((sum, item) => sum + item.progress, 0) / ap.length)
+        : data.progress;
     updateMutation.mutate(
       {
         id: task.id,
@@ -118,7 +173,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
           assignee_name: data.assignee_name || undefined,
           start_date: data.start_date || null,
           end_date: data.end_date || null,
-          progress: data.progress,
+          progress: computedProgress,
           assignee_ids: data.assignee_ids,
           parent_id: data.parent_id,
           dependency_ids: data.dependency_ids,
@@ -326,6 +381,121 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
             </div>
           </div>
 
+          {/* ── Subtareas ── */}
+          <div className="flex flex-col gap-2 p-4 bg-muted/20 rounded-lg border border-border/50">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
+                Subtareas {task.subtasks?.length > 0 && `(${task.subtasks.length})`}
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowSubtaskForm((v) => !v)}
+                aria-label="Agregar subtarea"
+              >
+                +
+              </Button>
+            </div>
+
+            {task.subtasks && task.subtasks.length > 0 ? (
+              <ul className="space-y-2">
+                {task.subtasks.map((st) => {
+                  const status = progressToSubtaskStatus(st.progress);
+                  const cfg = SUBTASK_STATUSES.find((s) => s.key === status)!;
+                  return (
+                    <li key={st.id} className="rounded-md border border-border/40 bg-background/50 p-2.5 space-y-2">
+                      {/* Título + avatar */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-sm font-medium flex-1 truncate ${status === "completed" ? "line-through text-muted-foreground" : ""}`}>
+                          {st.title}
+                        </span>
+                        {st.assignee && (
+                          <Avatar className="h-5 w-5 shrink-0">
+                            <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
+                              {getInitials(st.assignee.first_name || st.assignee.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                      {/* Pills de estado */}
+                      <div className="flex gap-1">
+                        {SUBTASK_STATUSES.map((s) => (
+                          <button
+                            key={s.key}
+                            type="button"
+                            onClick={() => updateSubtaskMutation.mutate({ subtaskId: st.id, progress: s.progress })}
+                            className={`flex-1 text-[10px] py-0.5 rounded-full font-medium transition-colors border ${
+                              status === s.key
+                                ? `${s.activeClass} border-transparent`
+                                : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/60"
+                            }`}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Mini barra de progreso */}
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${cfg.barClass}`}
+                          style={{ width: `${st.progress}%` }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">Sin subtareas aún.</p>
+            )}
+
+            {showSubtaskForm && (
+              <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+                <Input
+                  placeholder="Título de la subtarea"
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                <div className="flex gap-2">
+                  <select
+                    className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm"
+                    value={newSubtaskAssignee}
+                    onChange={(e) => setNewSubtaskAssignee(e.target.value)}
+                    aria-label="Asignar subtarea a"
+                  >
+                    <option value="">Sin asignar</option>
+                    {usersQuery.data?.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.first_name || u.email}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8"
+                    disabled={!newSubtaskTitle.trim() || createSubtaskMutation.isPending}
+                    onClick={() => createSubtaskMutation.mutate()}
+                  >
+                    {createSubtaskMutation.isPending ? "..." : "Crear"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => { setShowSubtaskForm(false); setNewSubtaskTitle(""); setNewSubtaskAssignee(""); }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-col gap-3 p-4 bg-muted/30 rounded-lg border border-border/50">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
               Progreso por Colaborador
@@ -333,55 +503,56 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
 
             {task.assignments && task.assignments.length > 0 ? (
               <div className="space-y-4">
-                {task.assignments.map((assignment) => (
-                  <div key={assignment.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback
-                            className="text-[10px] font-bold text-white"
-                            style={{ backgroundColor: assignment.user_color }}
-                          >
-                            {getInitials(assignment.user.first_name || assignment.user.email)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">
-                          {assignment.user.first_name || assignment.user.email}
+                {task.assignments.map((assignment) => {
+                  const current = assignmentProgress[assignment.user.id] ?? assignment.individual_progress;
+                  return (
+                    <div key={assignment.id} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback
+                              className="text-[10px] font-bold text-white"
+                              style={{ backgroundColor: assignment.user_color }}
+                            >
+                              {getInitials(assignment.user.first_name || assignment.user.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">
+                            {assignment.user.first_name || assignment.user.email}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold" style={{ color: assignment.user_color }}>
+                          {current}%
                         </span>
                       </div>
-                      <span className="text-xs font-bold" style={{ color: assignment.user_color }}>
-                        {assignment.individual_progress}%
-                      </span>
-                    </div>
-                    {/* Note: In a real app we'd need a separate endpoint or field in schema to update individual progress */}
-                    <div
-                      className="h-1.5 w-full bg-muted rounded-full overflow-hidden"
-                    >
-                      <div
-                        className="h-full transition-all duration-300"
-                        style={{
-                          width: `${assignment.individual_progress}%`,
-                          backgroundColor: assignment.user_color
-                        }}
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={current}
+                        aria-label={`Progreso de ${assignment.user.first_name || assignment.user.email}`}
+                        onChange={(e) =>
+                          setAssignmentProgress((prev) => ({
+                            ...prev,
+                            [assignment.user.id]: Number(e.target.value),
+                          }))
+                        }
+                        className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                        style={{ accentColor: assignment.user_color }}
                       />
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
-                <div className="pt-2 border-t border-border/50">
-                  <div className="flex justify-between items-end mb-1">
-                    <Label className="text-sm font-semibold">Progreso Total</Label>
-                    <span className="text-lg font-bold text-primary">{task.total_progress}%</span>
-                  </div>
-                  <input
-                    id="edit-progress"
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    {...form.register("progress", { valueAsNumber: true })}
-                    className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
+                <div className="pt-2 border-t border-border/50 flex justify-between items-center">
+                  <Label className="text-sm font-semibold">Progreso Total</Label>
+                  <span className="text-lg font-bold text-primary">
+                    {Math.round(
+                      Object.values(assignmentProgress).reduce((a, b) => a + b, 0) /
+                        Math.max(Object.values(assignmentProgress).length, 1)
+                    )}%
+                  </span>
                 </div>
               </div>
             ) : (

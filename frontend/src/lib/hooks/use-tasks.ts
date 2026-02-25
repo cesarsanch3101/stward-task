@@ -152,8 +152,20 @@ export function useMoveTask(boardId: string) {
         })
       );
     },
-    onError: () => {
-      toast.error("Error al mover tarea");
+    onError: (error: unknown) => {
+      let message = "Error al mover tarea";
+      if (error instanceof Error) {
+        const match = error.message.match(/^API \d+: ([\s\S]+)$/);
+        if (match) {
+          try {
+            const body = JSON.parse(match[1]);
+            if (typeof body.detail === "string") message = body.detail;
+          } catch {
+            /* usar mensaje por defecto */
+          }
+        }
+      }
+      toast.error(message);
       queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
     },
   });
