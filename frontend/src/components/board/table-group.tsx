@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TableRow } from "./table-row";
 import { useCreateTask } from "@/lib/hooks/use-tasks";
+import { STATUS_BG, STATUS_TEXT } from "@/lib/status-colors";
 import type { Column } from "@/lib/types";
 
 interface Props {
@@ -23,6 +24,9 @@ export function TableGroup({
   const [collapsed, setCollapsed] = useState(false);
   const createTask = useCreateTask(boardId);
 
+  const statusColor = STATUS_BG[column.status];
+  const statusTextColor = STATUS_TEXT[column.status];
+
   const handleAddItem = () => {
     createTask.mutate({
       title: "Nueva tarea",
@@ -39,8 +43,8 @@ export function TableGroup({
         type="button"
         className="flex w-full cursor-pointer select-none items-center gap-2 rounded-t-md px-3 py-2 text-left"
         style={{
-          backgroundColor: `${column.color}15`,
-          borderLeft: `4px solid ${column.color}`,
+          backgroundColor: `${statusColor}40`,
+          borderLeft: `4px solid ${statusColor}`,
         }}
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
@@ -49,19 +53,19 @@ export function TableGroup({
         {collapsed ? (
           <ChevronRight
             className="h-4 w-4 shrink-0"
-            style={{ color: column.color }}
+            style={{ color: statusTextColor }}
             aria-hidden="true"
           />
         ) : (
           <ChevronDown
             className="h-4 w-4 shrink-0"
-            style={{ color: column.color }}
+            style={{ color: statusTextColor }}
             aria-hidden="true"
           />
         )}
         <span
           className="text-sm font-semibold"
-          style={{ color: column.color }}
+          style={{ color: statusTextColor }}
         >
           {column.name}
         </span>
@@ -86,7 +90,7 @@ export function TableGroup({
           {/* Add item row */}
           <div
             className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5"
-            style={{ borderLeft: `4px solid ${column.color}30` }}
+            style={{ borderLeft: `4px solid ${statusColor}50` }}
           >
             <Button
               variant="ghost"

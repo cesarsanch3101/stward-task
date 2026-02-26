@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TaskCard } from "./task-card";
 import { CreateTaskDialog } from "./create-task-dialog";
+import { STATUS_BG } from "@/lib/status-colors";
 import type { Column } from "@/lib/types";
 
 interface Props {
@@ -34,7 +35,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       <div className="flex items-center gap-2 px-2 pb-3">
         <div
           className="h-3 w-3 shrink-0 rounded-full"
-          style={{ backgroundColor: column.color }}
+          style={{ backgroundColor: STATUS_BG[column.status] }}
         />
         <h3 className="font-semibold text-sm text-foreground">{column.name}</h3>
         <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">

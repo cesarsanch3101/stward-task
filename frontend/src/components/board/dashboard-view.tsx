@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Clock, AlertCircle, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { STATUS_BG } from "@/lib/status-colors";
 import type { Board } from "@/lib/types";
 
 interface Props {
@@ -36,8 +37,6 @@ interface UserWorkload {
     completed: number;
     avgProgress: number;
 }
-
-const COLORS = ["#0073ea", "#33d391", "#e2445c", "#ffcb00", "#00a9ff", "#9d50bb", "#ff758c"];
 
 export function DashboardView({ board }: Props) {
     const allTasks = useMemo(() => {
@@ -62,7 +61,11 @@ export function DashboardView({ board }: Props) {
 
         // Status distribution (pie chart)
         const statusData = board.columns
-            .map((col) => ({ name: col.name, value: (col.tasks || []).length }))
+            .map((col) => ({
+                name: col.name,
+                value: (col.tasks || []).length,
+                color: STATUS_BG[col.status] ?? STATUS_BG.pending,
+            }))
             .filter((d) => d.value > 0);
 
         // Priority distribution (bar chart)
@@ -174,25 +177,46 @@ export function DashboardView({ board }: Props) {
                             Distribución por Estado
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={stats.statusData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={100}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {stats.statusData.map((_, i) => (
-                                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
+                    <CardContent className="h-[300px] flex items-center gap-2">
+                        <div className="flex-1 h-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats.statusData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={100}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {stats.statusData.map((entry: { name: string; value: number; color: string }, i: number) => (
+                                            <Cell key={i} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        {/* Leyenda lateral derecha */}
+                        <div className="flex flex-col gap-3 pr-4">
+                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-slate-300 ring-1 ring-slate-400/60" />
+                                Pendiente
+                            </span>
+                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-yellow-200 ring-1 ring-yellow-500/60" />
+                                En Progreso
+                            </span>
+                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-red-200 ring-1 ring-red-500/60" />
+                                Retrasado
+                            </span>
+                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-green-200 ring-1 ring-green-500/60" />
+                                Completado
+                            </span>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -291,29 +315,25 @@ function TeamWorkloadPanel({ data }: { data: UserWorkload[] }) {
                         <div className="flex h-2.5 rounded-full overflow-hidden gap-px bg-muted/30">
                             {user.pending > 0 && (
                                 <div
-                                    style={{ width: `${(user.pending / user.total) * 100}%` }}
-                                    className="bg-slate-400"
+                                    style={{ width: `${(user.pending / user.total) * 100}%`, backgroundColor: STATUS_BG.pending }}
                                     title={`Pendiente: ${user.pending}`}
                                 />
                             )}
                             {user.inProgress > 0 && (
                                 <div
-                                    style={{ width: `${(user.inProgress / user.total) * 100}%` }}
-                                    className="bg-blue-500"
+                                    style={{ width: `${(user.inProgress / user.total) * 100}%`, backgroundColor: STATUS_BG.in_progress }}
                                     title={`En Progreso: ${user.inProgress}`}
                                 />
                             )}
                             {user.delayed > 0 && (
                                 <div
-                                    style={{ width: `${(user.delayed / user.total) * 100}%` }}
-                                    className="bg-orange-500"
+                                    style={{ width: `${(user.delayed / user.total) * 100}%`, backgroundColor: STATUS_BG.delayed }}
                                     title={`Retrasado: ${user.delayed}`}
                                 />
                             )}
                             {user.completed > 0 && (
                                 <div
-                                    style={{ width: `${(user.completed / user.total) * 100}%` }}
-                                    className="bg-green-500"
+                                    style={{ width: `${(user.completed / user.total) * 100}%`, backgroundColor: STATUS_BG.completed }}
                                     title={`Completado: ${user.completed}`}
                                 />
                             )}
@@ -355,19 +375,19 @@ function TeamWorkloadPanel({ data }: { data: UserWorkload[] }) {
             {/* Legend */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 pt-3 border-t border-border/50 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-slate-400 inline-block" />
+                    <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: STATUS_BG.pending }} />
                     Pendiente
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+                    <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: STATUS_BG.in_progress }} />
                     En Progreso
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />
+                    <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: STATUS_BG.delayed }} />
                     Retrasado
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
+                    <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: STATUS_BG.completed }} />
                     Completado
                 </span>
             </div>

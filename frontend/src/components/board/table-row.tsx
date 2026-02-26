@@ -15,6 +15,7 @@ import { PriorityBadge } from "./priority-badge";
 import { StatusPill } from "./status-pill";
 import { EditTaskDialog } from "./edit-task-dialog";
 import { useUpdateTask, useDeleteTask } from "@/lib/hooks/use-tasks";
+import { isOverdue, wasCompletedLate } from "@/lib/task-utils";
 import type { Task, Column, Priority } from "@/lib/types";
 
 interface Props {
@@ -38,6 +39,8 @@ export function TableRow({
   const [localProgress, setLocalProgress] = useState(task.progress);
   const updateTask = useUpdateTask(boardId);
   const deleteTask = useDeleteTask(boardId);
+  const overdue = isOverdue(task);
+  const completedLate = wasCompletedLate(task);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const isEditing = (field: string) =>
@@ -140,8 +143,16 @@ export function TableRow({
         </div>
 
         {/* Status */}
-        <div className="p-0 h-full border-r border-border/30">
-          <StatusPill name={column.name} color={column.color} />
+        <div className="p-0 h-full border-r border-border/30 flex flex-col">
+          <StatusPill
+            name={overdue ? "Retrasada" : column.name}
+            status={overdue ? "delayed" : column.status}
+          />
+          {completedLate && (
+            <div className="flex items-center justify-center gap-1 px-2 py-0.5 text-[9px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 border-t border-amber-200 dark:border-amber-800">
+              ⏰ Completada tarde
+            </div>
+          )}
         </div>
 
         {/* Priority */}

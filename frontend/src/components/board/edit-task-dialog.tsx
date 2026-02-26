@@ -196,386 +196,405 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[1000px] min-h-[75vh] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-border/50">
           <DialogTitle>Editar tarea</DialogTitle>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-title">Título</Label>
-            <Input
-              id="edit-title"
-              {...form.register("title")}
-              autoFocus
-              aria-invalid={!!form.formState.errors.title}
-              aria-errormessage={form.formState.errors.title ? "error-edit-title" : undefined}
-            />
-            {form.formState.errors.title && (
-              <p id="error-edit-title" className="text-xs text-red-500" role="alert">{form.formState.errors.title.message}</p>
-            )}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-description">Descripción</Label>
-            <Textarea
-              id="edit-description"
-              {...form.register("description")}
-              rows={3}
-            />
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Prioridad</Label>
-              <Controller
-                control={form.control}
-                name="priority"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin prioridad</SelectItem>
-                      <SelectItem value="low">Baja</SelectItem>
-                      <SelectItem value="medium">Media</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                      <SelectItem value="urgent">Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Colaboradores</Label>
-              <Controller
-                control={form.control}
-                name="assignee_ids"
-                render={({ field }) => (
-                  <div className="border rounded-md p-2 bg-muted/20">
-                    <ScrollArea className="h-[100px]">
-                      <div className="space-y-2 pr-4">
-                        {usersQuery.data?.map((member) => (
-                          <div key={member.id} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`member-${member.id}`}
-                              checked={field.value?.includes(member.id)}
-                              onCheckedChange={(checked) => {
-                                const current = field.value || [];
-                                if (checked) {
-                                  field.onChange([...current, member.id]);
-                                } else {
-                                  field.onChange(current.filter((id) => id !== member.id));
-                                }
-                              }}
-                            />
-                            <Label
-                              htmlFor={`member-${member.id}`}
-                              className="flex items-center gap-2 cursor-pointer text-xs flex-1"
-                            >
-                              <Avatar className="h-5 w-5">
-                                <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
-                                  {getInitials(member.first_name || member.email)}
-                                </AvatarFallback>
-                              </Avatar>
-                              {member.first_name} {member.last_name}
-                              <span className="text-[10px] text-muted-foreground ml-auto">
-                                {member.email}
-                              </span>
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
-              />
-            </div>
-          </div>
+        <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0">
+          {/* ── Área de dos paneles ── */}
+          <div className="flex flex-1 min-h-0 overflow-hidden">
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-start-date">Fecha de inicio</Label>
-              <Input
-                id="edit-start-date"
-                type="date"
-                {...form.register("start_date")}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-end-date">Fecha de finalización</Label>
-              <Input
-                id="edit-end-date"
-                type="date"
-                {...form.register("end_date")}
-                aria-invalid={!!form.formState.errors.end_date}
-                aria-errormessage={form.formState.errors.end_date ? "error-edit-end-date" : undefined}
-              />
-              {form.formState.errors.end_date && (
-                <p id="error-edit-end-date" className="text-xs text-red-500" role="alert">{form.formState.errors.end_date.message}</p>
-              )}
-            </div>
-          </div>
+            {/* Panel izquierdo: campos principales */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 border-r border-border/50">
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Tarea Padre (Hito/Grupo)</Label>
-              <Controller
-                control={form.control}
-                name="parent_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? "none"}
-                    onValueChange={(v) => field.onChange(v === "none" ? null : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Ninguna" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Ninguna</SelectItem>
-                      {boardQuery.data?.columns.flatMap(c => c.tasks || [])
-                        .filter(t => t.id !== task.id)
-                        .map(t => (
-                          <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
-                        ))
-                      }
-                    </SelectContent>
-                  </Select>
+              {/* Título */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="edit-title">Título</Label>
+                <Input
+                  id="edit-title"
+                  {...form.register("title")}
+                  autoFocus
+                  aria-invalid={!!form.formState.errors.title}
+                  aria-errormessage={form.formState.errors.title ? "error-edit-title" : undefined}
+                />
+                {form.formState.errors.title && (
+                  <p id="error-edit-title" className="text-xs text-red-500" role="alert">{form.formState.errors.title.message}</p>
                 )}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Dependencias</Label>
-              <Controller
-                control={form.control}
-                name="dependency_ids"
-                render={({ field }) => (
-                  <div className="border rounded-md p-2 bg-muted/20">
-                    <ScrollArea className="h-[100px]">
-                      <div className="space-y-2 pr-4">
-                        {boardQuery.data?.columns.flatMap(c => c.tasks || [])
-                          .filter(t => t.id !== task.id)
-                          .map((t) => (
-                            <div key={t.id} className="flex items-center gap-2">
+              </div>
+
+              {/* Descripción */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="edit-description">Descripción</Label>
+                <Textarea
+                  id="edit-description"
+                  {...form.register("description")}
+                  rows={3}
+                />
+              </div>
+
+              {/* Prioridad + Fechas en 3 columnas */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col gap-2">
+                  <Label>Prioridad</Label>
+                  <Controller
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sin prioridad</SelectItem>
+                          <SelectItem value="low">Baja</SelectItem>
+                          <SelectItem value="medium">Media</SelectItem>
+                          <SelectItem value="high">Alta</SelectItem>
+                          <SelectItem value="urgent">Urgente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="edit-start-date">Fecha de inicio</Label>
+                  <Input
+                    id="edit-start-date"
+                    type="date"
+                    {...form.register("start_date")}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="edit-end-date">Fecha de finalización</Label>
+                  <Input
+                    id="edit-end-date"
+                    type="date"
+                    {...form.register("end_date")}
+                    aria-invalid={!!form.formState.errors.end_date}
+                    aria-errormessage={form.formState.errors.end_date ? "error-edit-end-date" : undefined}
+                  />
+                  {form.formState.errors.end_date && (
+                    <p id="error-edit-end-date" className="text-xs text-red-500" role="alert">{form.formState.errors.end_date.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Colaboradores */}
+              <div className="flex flex-col gap-2">
+                <Label>Colaboradores</Label>
+                <Controller
+                  control={form.control}
+                  name="assignee_ids"
+                  render={({ field }) => (
+                    <div className="border rounded-md p-2 bg-muted/20">
+                      <ScrollArea className="h-[120px]">
+                        <div className="space-y-2 pr-4">
+                          {usersQuery.data?.map((member) => (
+                            <div key={member.id} className="flex items-center gap-2">
                               <Checkbox
-                                id={`dep-${t.id}`}
-                                checked={field.value?.includes(t.id)}
+                                id={`member-${member.id}`}
+                                checked={field.value?.includes(member.id)}
                                 onCheckedChange={(checked) => {
                                   const current = field.value || [];
                                   if (checked) {
-                                    field.onChange([...current, t.id]);
+                                    field.onChange([...current, member.id]);
                                   } else {
-                                    field.onChange(current.filter((id) => id !== t.id));
+                                    field.onChange(current.filter((id) => id !== member.id));
                                   }
                                 }}
                               />
-                              <Label htmlFor={`dep-${t.id}`} className="text-xs truncate flex-1 cursor-pointer">
-                                {t.title}
+                              <Label
+                                htmlFor={`member-${member.id}`}
+                                className="flex items-center gap-2 cursor-pointer text-xs flex-1"
+                              >
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
+                                    {getInitials(member.first_name || member.email)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {member.first_name} {member.last_name}
+                                <span className="text-[10px] text-muted-foreground ml-auto">
+                                  {member.email}
+                                </span>
                               </Label>
                             </div>
                           ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
-              />
-            </div>
-          </div>
-
-          {/* ── Subtareas ── */}
-          <div className="flex flex-col gap-2 p-4 bg-muted/20 rounded-lg border border-border/50">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
-                Subtareas {task.subtasks?.length > 0 && `(${task.subtasks.length})`}
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                onClick={() => setShowSubtaskForm((v) => !v)}
-                aria-label="Agregar subtarea"
-              >
-                +
-              </Button>
-            </div>
-
-            {task.subtasks && task.subtasks.length > 0 ? (
-              <ul className="space-y-2">
-                {task.subtasks.map((st) => {
-                  const status = progressToSubtaskStatus(st.progress);
-                  const cfg = SUBTASK_STATUSES.find((s) => s.key === status)!;
-                  return (
-                    <li key={st.id} className="rounded-md border border-border/40 bg-background/50 p-2.5 space-y-2">
-                      {/* Título + avatar */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-sm font-medium flex-1 truncate ${status === "completed" ? "line-through text-muted-foreground" : ""}`}>
-                          {st.title}
-                        </span>
-                        {st.assignee && (
-                          <Avatar className="h-5 w-5 shrink-0">
-                            <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
-                              {getInitials(st.assignee.first_name || st.assignee.email)}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
-                      </div>
-                      {/* Pills de estado */}
-                      <div className="flex gap-1">
-                        {SUBTASK_STATUSES.map((s) => (
-                          <button
-                            key={s.key}
-                            type="button"
-                            onClick={() => updateSubtaskMutation.mutate({ subtaskId: st.id, progress: s.progress })}
-                            className={`flex-1 text-[10px] py-0.5 rounded-full font-medium transition-colors border ${
-                              status === s.key
-                                ? `${s.activeClass} border-transparent`
-                                : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/60"
-                            }`}
-                          >
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
-                      {/* Mini barra de progreso */}
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${cfg.barClass}`}
-                          style={{ width: `${st.progress}%` }}
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">Sin subtareas aún.</p>
-            )}
-
-            {showSubtaskForm && (
-              <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-                <Input
-                  placeholder="Título de la subtarea"
-                  value={newSubtaskTitle}
-                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                  className="h-8 text-sm"
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
                 />
-                <div className="flex gap-2">
-                  <select
-                    className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm"
-                    value={newSubtaskAssignee}
-                    onChange={(e) => setNewSubtaskAssignee(e.target.value)}
-                    aria-label="Asignar subtarea a"
-                  >
-                    <option value="">Sin asignar</option>
-                    {usersQuery.data?.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.first_name || u.email}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8"
-                    disabled={!newSubtaskTitle.trim() || createSubtaskMutation.isPending}
-                    onClick={() => createSubtaskMutation.mutate()}
-                  >
-                    {createSubtaskMutation.isPending ? "..." : "Crear"}
-                  </Button>
+              </div>
+
+              {/* Tarea Padre + Dependencias */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label>Tarea Padre (Hito/Grupo)</Label>
+                  <Controller
+                    control={form.control}
+                    name="parent_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? "none"}
+                        onValueChange={(v) => field.onChange(v === "none" ? null : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Ninguna" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Ninguna</SelectItem>
+                          {boardQuery.data?.columns.flatMap(c => c.tasks || [])
+                            .filter(t => t.id !== task.id)
+                            .map(t => (
+                              <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Dependencias</Label>
+                  <Controller
+                    control={form.control}
+                    name="dependency_ids"
+                    render={({ field }) => (
+                      <div className="border rounded-md p-2 bg-muted/20">
+                        <ScrollArea className="h-[100px]">
+                          <div className="space-y-2 pr-4">
+                            {boardQuery.data?.columns.flatMap(c => c.tasks || [])
+                              .filter(t => t.id !== task.id)
+                              .map((t) => (
+                                <div key={t.id} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`dep-${t.id}`}
+                                    checked={field.value?.includes(t.id)}
+                                    onCheckedChange={(checked) => {
+                                      const current = field.value || [];
+                                      if (checked) {
+                                        field.onChange([...current, t.id]);
+                                      } else {
+                                        field.onChange(current.filter((id) => id !== t.id));
+                                      }
+                                    }}
+                                  />
+                                  <Label htmlFor={`dep-${t.id}`} className="text-xs truncate flex-1 cursor-pointer">
+                                    {t.title}
+                                  </Label>
+                                </div>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
+                  />
+                </div>
+              </div>
+
+            </div>
+
+            {/* Panel derecho: subtareas, progreso y comentarios */}
+            <div className="w-[360px] shrink-0 overflow-y-auto px-5 py-4 space-y-5 bg-muted/5">
+
+              {/* ── Subtareas ── */}
+              <div className="flex flex-col gap-2 p-3 bg-muted/20 rounded-lg border border-border/50">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
+                    Subtareas {task.subtasks?.length > 0 && `(${task.subtasks.length})`}
+                  </Label>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8"
-                    onClick={() => { setShowSubtaskForm(false); setNewSubtaskTitle(""); setNewSubtaskAssignee(""); }}
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowSubtaskForm((v) => !v)}
+                    aria-label="Agregar subtarea"
                   >
-                    Cancelar
+                    +
                   </Button>
                 </div>
-              </div>
-            )}
-          </div>
 
-          <div className="flex flex-col gap-3 p-4 bg-muted/30 rounded-lg border border-border/50">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
-              Progreso por Colaborador
-            </Label>
+                {task.subtasks && task.subtasks.length > 0 ? (
+                  <ul className="space-y-2">
+                    {task.subtasks.map((st) => {
+                      const status = progressToSubtaskStatus(st.progress);
+                      const cfg = SUBTASK_STATUSES.find((s) => s.key === status)!;
+                      return (
+                        <li key={st.id} className="rounded-md border border-border/40 bg-background/50 p-2.5 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-sm font-medium flex-1 truncate ${status === "completed" ? "line-through text-muted-foreground" : ""}`}>
+                              {st.title}
+                            </span>
+                            {st.assignee && (
+                              <Avatar className="h-5 w-5 shrink-0">
+                                <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
+                                  {getInitials(st.assignee.first_name || st.assignee.email)}
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            {SUBTASK_STATUSES.map((s) => (
+                              <button
+                                key={s.key}
+                                type="button"
+                                onClick={() => updateSubtaskMutation.mutate({ subtaskId: st.id, progress: s.progress })}
+                                className={`flex-1 text-[10px] py-0.5 rounded-full font-medium transition-colors border ${
+                                  status === s.key
+                                    ? `${s.activeClass} border-transparent`
+                                    : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/60"
+                                }`}
+                              >
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${cfg.barClass}`}
+                              style={{ width: `${st.progress}%` }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Sin subtareas aún.</p>
+                )}
 
-            {task.assignments && task.assignments.length > 0 ? (
-              <div className="space-y-4">
-                {task.assignments.map((assignment) => {
-                  const current = assignmentProgress[assignment.user.id] ?? assignment.individual_progress;
-                  return (
-                    <div key={assignment.id} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback
-                              className="text-[10px] font-bold text-white"
-                              style={{ backgroundColor: assignment.user_color }}
-                            >
-                              {getInitials(assignment.user.first_name || assignment.user.email)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm font-medium">
-                            {assignment.user.first_name || assignment.user.email}
-                          </span>
-                        </div>
-                        <span className="text-xs font-bold" style={{ color: assignment.user_color }}>
-                          {current}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={5}
-                        value={current}
-                        aria-label={`Progreso de ${assignment.user.first_name || assignment.user.email}`}
-                        onChange={(e) =>
-                          setAssignmentProgress((prev) => ({
-                            ...prev,
-                            [assignment.user.id]: Number(e.target.value),
-                          }))
-                        }
-                        className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                        style={{ accentColor: assignment.user_color }}
-                      />
+                {showSubtaskForm && (
+                  <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+                    <Input
+                      placeholder="Título de la subtarea"
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <select
+                        className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm"
+                        value={newSubtaskAssignee}
+                        onChange={(e) => setNewSubtaskAssignee(e.target.value)}
+                        aria-label="Asignar subtarea a"
+                      >
+                        <option value="">Sin asignar</option>
+                        {usersQuery.data?.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.first_name || u.email}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8"
+                        disabled={!newSubtaskTitle.trim() || createSubtaskMutation.isPending}
+                        onClick={() => createSubtaskMutation.mutate()}
+                      >
+                        {createSubtaskMutation.isPending ? "..." : "Crear"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => { setShowSubtaskForm(false); setNewSubtaskTitle(""); setNewSubtaskAssignee(""); }}
+                      >
+                        Cancelar
+                      </Button>
                     </div>
-                  );
-                })}
+                  </div>
+                )}
+              </div>
 
-                <div className="pt-2 border-t border-border/50 flex justify-between items-center">
-                  <Label className="text-sm font-semibold">Progreso Total</Label>
-                  <span className="text-lg font-bold text-primary">
-                    {Math.round(
-                      Object.values(assignmentProgress).reduce((a, b) => a + b, 0) /
-                        Math.max(Object.values(assignmentProgress).length, 1)
-                    )}%
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="edit-progress" className="text-sm">
-                  Progreso General: {progress}%
+              {/* ── Progreso por Colaborador ── */}
+              <div className="flex flex-col gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
+                  Progreso por Colaborador
                 </Label>
-                <input
-                  id="edit-progress"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  {...form.register("progress", { valueAsNumber: true })}
-                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                />
+
+                {task.assignments && task.assignments.length > 0 ? (
+                  <div className="space-y-4">
+                    {task.assignments.map((assignment) => {
+                      const current = assignmentProgress[assignment.user.id] ?? assignment.individual_progress;
+                      return (
+                        <div key={assignment.id} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback
+                                  className="text-[10px] font-bold text-white"
+                                  style={{ backgroundColor: assignment.user_color }}
+                                >
+                                  {getInitials(assignment.user.first_name || assignment.user.email)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium">
+                                {assignment.user.first_name || assignment.user.email}
+                              </span>
+                            </div>
+                            <span className="text-xs font-bold" style={{ color: assignment.user_color }}>
+                              {current}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={5}
+                            value={current}
+                            aria-label={`Progreso de ${assignment.user.first_name || assignment.user.email}`}
+                            onChange={(e) =>
+                              setAssignmentProgress((prev) => ({
+                                ...prev,
+                                [assignment.user.id]: Number(e.target.value),
+                              }))
+                            }
+                            className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                            style={{ accentColor: assignment.user_color }}
+                          />
+                        </div>
+                      );
+                    })}
+
+                    <div className="pt-2 border-t border-border/50 flex justify-between items-center">
+                      <Label className="text-sm font-semibold">Progreso Total</Label>
+                      <span className="text-lg font-bold text-primary">
+                        {Math.round(
+                          Object.values(assignmentProgress).reduce((a, b) => a + b, 0) /
+                            Math.max(Object.values(assignmentProgress).length, 1)
+                        )}%
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-progress" className="text-sm">
+                      Progreso General: {progress}%
+                    </Label>
+                    <input
+                      id="edit-progress"
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      {...form.register("progress", { valueAsNumber: true })}
+                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* ── Comentarios ── */}
+              <CommentSection taskId={task.id} />
+
+            </div>
           </div>
 
-          <CommentSection taskId={task.id} />
-
-          <div className="flex justify-between pt-2">
+          {/* ── Footer fijo ── */}
+          <div className="flex justify-between items-center px-6 py-4 shrink-0 border-t border-border/50">
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button type="button" variant="destructive" size="sm">

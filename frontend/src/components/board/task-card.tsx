@@ -5,9 +5,10 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, AlertTriangle, Clock } from "lucide-react";
 import { PriorityBadge } from "./priority-badge";
 import { EditTaskDialog } from "./edit-task-dialog";
+import { isOverdue, wasCompletedLate, daysOverdue } from "@/lib/task-utils";
 import type { Task } from "@/lib/types";
 
 function getInitials(name: string): string {
@@ -19,14 +20,6 @@ function getInitials(name: string): string {
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("es", { day: "2-digit", month: "short" });
-}
-
-function isOverdue(task: Task): boolean {
-  if (!task.end_date || task.progress >= 100) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = new Date(task.end_date + "T00:00:00");
-  return end < today;
 }
 
 interface Props {
@@ -58,6 +51,8 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
   };
 
   const overdue = isOverdue(task);
+  const completedLate = wasCompletedLate(task);
+  const days = overdue ? daysOverdue(task) : 0;
 
   return (
     <>
@@ -66,8 +61,9 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
         style={isOverlay ? undefined : style}
         {...(isOverlay ? {} : attributes)}
         {...(isOverlay ? {} : listeners)}
-        className={`cursor-grab active:cursor-grabbing border shadow-none hover:border-primary/50 transition-colors ${overdue ? "border-red-500/50 bg-red-50/30 dark:bg-red-950/20" : "bg-card"
-          }`}
+        className={`cursor-grab active:cursor-grabbing border shadow-none hover:border-primary/50 transition-colors overflow-hidden ${
+          overdue ? "border-red-500/50 bg-red-50/30 dark:bg-red-950/20" : "bg-card"
+        }`}
         tabIndex={0}
         onClick={(e) => {
           if (!isDragging) {
@@ -75,14 +71,24 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
           }
         }}
       >
+        {/* Banner: tarea actualmente atrasada */}
+        {overdue && (
+          <div className="flex items-center gap-1.5 bg-red-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+            <AlertTriangle className="h-3 w-3 shrink-0" />
+            ATRASADA · {days} {days === 1 ? "día" : "días"}
+          </div>
+        )}
+        {/* Banner: completada pero después del deadline */}
+        {!overdue && completedLate && (
+          <div className="flex items-center gap-1.5 bg-amber-400 text-amber-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider">
+            <Clock className="h-3 w-3 shrink-0" />
+            Completada con retraso
+          </div>
+        )}
+
         <CardHeader className="p-3 pb-2">
           <div className="flex items-start gap-2">
             <p className="text-[14px] font-medium leading-tight flex-1 text-foreground/90">{task.title}</p>
-            {overdue && (
-              <span className="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase tracking-wider shrink-0 mt-0.5">
-                Vencida
-              </span>
-            )}
           </div>
         </CardHeader>
         <CardContent className="p-3 pt-0 space-y-3">

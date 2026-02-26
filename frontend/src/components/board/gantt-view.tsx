@@ -3,6 +3,8 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { ChevronDown, ChevronRight, Calendar, Users, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import type { Board, Task, Column } from "@/lib/types";
+import { STATUS_BG } from "@/lib/status-colors";
+import { isOverdue } from "@/lib/task-utils";
 import { PriorityBadge } from "./priority-badge";
 import { Card } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -40,7 +42,7 @@ export function GanttView({ board }: Props) {
         return board.columns.map((col) => ({
             id: col.id,
             name: col.name,
-            color: col.color,
+            color: STATUS_BG[col.status],
             tasks: (col.tasks || []).filter((t) => !t.parent_id),
         }));
     }, [board.columns]);
@@ -252,6 +254,7 @@ export function GanttView({ board }: Props) {
 
                                     {expandedGroups[group.id] && group.tasks.map((task) => {
                                         const pos = calculateTaskPosition(task.start_date, task.end_date);
+                                        const barColor = isOverdue(task) ? STATUS_BG.delayed : group.color;
                                         return (
                                             <div key={`timeline-task-row-${task.id}`} className="h-10 border-b border-border/10 relative w-full group">
                                                 {pos && (
@@ -260,7 +263,7 @@ export function GanttView({ board }: Props) {
                                                         style={{
                                                             left: pos.left,
                                                             width: pos.width,
-                                                            backgroundColor: group.color,
+                                                            backgroundColor: barColor,
                                                             opacity: 0.95
                                                         }}
                                                         title={`${task.title} (${task.progress}%)`}
