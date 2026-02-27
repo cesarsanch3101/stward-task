@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 type BoardView = "kanban" | "table" | "dashboard" | "gantt";
+type WorkspaceView = "dashboard" | "gantt";
 
 interface UIState {
   sidebarOpen: boolean;
@@ -8,6 +9,8 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
   boardView: BoardView;
   setBoardView: (v: BoardView) => void;
+  workspaceView: WorkspaceView;
+  setWorkspaceView: (v: WorkspaceView) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -16,4 +19,6 @@ export const useUIStore = create<UIState>((set) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   boardView: "kanban",
   setBoardView: (v) => set({ boardView: v }),
+  workspaceView: "dashboard",
+  setWorkspaceView: (v) => set({ workspaceView: v }),
 }));

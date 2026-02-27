@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,6 +41,7 @@ import { CommentSection } from "./comment-section";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Pencil, Check, X, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import type { Task } from "@/lib/types";
 
 function getInitials(name: string) {
@@ -110,6 +111,61 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
   const updateSubtaskMutation = useMutation({
     mutationFn: ({ subtaskId, progress }: { subtaskId: string; progress: number }) =>
       api.updateTask(subtaskId, { progress }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+    },
+  });
+
+  // Subtask inline editing
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editSubtaskTitle, setEditSubtaskTitle] = useState("");
+  const [editSubtaskAssignee, setEditSubtaskAssignee] = useState<string>("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const startEditSubtask = (id: string, title: string, assigneeId: string) => {
+    setEditingSubtaskId(id);
+    setEditSubtaskTitle(title);
+    setEditSubtaskAssignee(assigneeId);
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  };
+
+  const cancelEditSubtask = () => {
+    setEditingSubtaskId(null);
+    setEditSubtaskTitle("");
+    setEditSubtaskAssignee("");
+  };
+
+  const editSubtaskMutation = useMutation({
+    mutationFn: ({ subtaskId, title, assigneeId }: { subtaskId: string; title: string; assigneeId: string }) =>
+      api.updateTask(subtaskId, {
+        title,
+        assignee_ids: assigneeId ? [assigneeId] : [],
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+      cancelEditSubtask();
+    },
+  });
+
+  // Subtask delete state
+  const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
+
+  const deleteSubtaskMutation = useMutation({
+    mutationFn: (subtaskId: string) => api.deleteTask(subtaskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+      setDeletingSubtaskId(null);
+    },
+  });
+
+  // Subtask reorder
+  const reorderSubtaskMutation = useMutation({
+    mutationFn: async ({ id, newOrder, adjacentId, adjacentOrder }: {
+      id: string; newOrder: number; adjacentId: string; adjacentOrder: number;
+    }) => {
+      await api.updateTask(id, { order: newOrder });
+      await api.updateTask(adjacentId, { order: adjacentOrder });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
     },
@@ -417,45 +473,165 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
 
                 {task.subtasks && task.subtasks.length > 0 ? (
                   <ul className="space-y-2">
-                    {task.subtasks.map((st) => {
+                    {[...task.subtasks].sort((a, b) => a.order - b.order).map((st, idx, sorted) => {
                       const status = progressToSubtaskStatus(st.progress);
                       const cfg = SUBTASK_STATUSES.find((s) => s.key === status)!;
+                      const isFirst = idx === 0;
+                      const isLast = idx === sorted.length - 1;
                       return (
                         <li key={st.id} className="rounded-md border border-border/40 bg-background/50 p-2.5 space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className={`text-sm font-medium flex-1 truncate ${status === "completed" ? "line-through text-muted-foreground" : ""}`}>
-                              {st.title}
-                            </span>
-                            {st.assignee && (
-                              <Avatar className="h-5 w-5 shrink-0">
-                                <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
-                                  {getInitials(st.assignee.first_name || st.assignee.email)}
-                                </AvatarFallback>
-                              </Avatar>
-                            )}
-                          </div>
-                          <div className="flex gap-1">
-                            {SUBTASK_STATUSES.map((s) => (
-                              <button
-                                key={s.key}
-                                type="button"
-                                onClick={() => updateSubtaskMutation.mutate({ subtaskId: st.id, progress: s.progress })}
-                                className={`flex-1 text-[10px] py-0.5 rounded-full font-medium transition-colors border ${
-                                  status === s.key
-                                    ? `${s.activeClass} border-transparent`
-                                    : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/60"
-                                }`}
+                          {editingSubtaskId === st.id ? (
+                            /* ── Modo edición ── */
+                            <div className="space-y-2">
+                              <Input
+                                ref={editInputRef}
+                                value={editSubtaskTitle}
+                                onChange={(e) => setEditSubtaskTitle(e.target.value)}
+                                className="h-7 text-sm"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") editSubtaskMutation.mutate({ subtaskId: st.id, title: editSubtaskTitle, assigneeId: editSubtaskAssignee });
+                                  if (e.key === "Escape") cancelEditSubtask();
+                                }}
+                              />
+                              <select
+                                className="w-full h-7 rounded-md border border-input bg-background px-2 text-xs"
+                                value={editSubtaskAssignee}
+                                onChange={(e) => setEditSubtaskAssignee(e.target.value)}
+                                aria-label="Asignado"
                               >
-                                {s.label}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-300 ${cfg.barClass}`}
-                              style={{ width: `${st.progress}%` }}
-                            />
-                          </div>
+                                <option value="">Sin asignar</option>
+                                {usersQuery.data?.map((u) => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.first_name || u.email}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="flex gap-1 justify-end">
+                                <Button
+                                  type="button" size="sm" variant="ghost"
+                                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                  onClick={cancelEditSubtask}
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button" size="sm"
+                                  className="h-6 w-6 p-0"
+                                  disabled={!editSubtaskTitle.trim() || editSubtaskMutation.isPending}
+                                  onClick={() => editSubtaskMutation.mutate({ subtaskId: st.id, title: editSubtaskTitle, assigneeId: editSubtaskAssignee })}
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* ── Modo lectura ── */
+                            <>
+                              <div className="flex items-center justify-between gap-2">
+                                {/* Flechas de reorden */}
+                                <div className="flex flex-col shrink-0">
+                                  <button
+                                    type="button"
+                                    disabled={isFirst || reorderSubtaskMutation.isPending}
+                                    onClick={() => {
+                                      const prev = sorted[idx - 1];
+                                      reorderSubtaskMutation.mutate({ id: st.id, newOrder: prev.order, adjacentId: prev.id, adjacentOrder: st.order });
+                                    }}
+                                    className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-default"
+                                    aria-label="Mover subtarea arriba"
+                                  >
+                                    <ChevronUp className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isLast || reorderSubtaskMutation.isPending}
+                                    onClick={() => {
+                                      const next = sorted[idx + 1];
+                                      reorderSubtaskMutation.mutate({ id: st.id, newOrder: next.order, adjacentId: next.id, adjacentOrder: st.order });
+                                    }}
+                                    className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-default"
+                                    aria-label="Mover subtarea abajo"
+                                  >
+                                    <ChevronDown className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                <span className={`text-sm font-medium flex-1 truncate ${status === "completed" ? "line-through text-muted-foreground" : ""}`}>
+                                  {st.title}
+                                </span>
+                                {deletingSubtaskId === st.id ? (
+                                  /* ── Confirmación de eliminación ── */
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span className="text-[10px] text-destructive font-medium">¿Eliminar?</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteSubtaskMutation.mutate(st.id)}
+                                      disabled={deleteSubtaskMutation.isPending}
+                                      className="h-5 w-5 flex items-center justify-center rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                                      aria-label="Confirmar eliminación"
+                                    >
+                                      <Check className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingSubtaskId(null)}
+                                      className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                      aria-label="Cancelar eliminación"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {st.assignee && (
+                                      <Avatar className="h-5 w-5">
+                                        <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
+                                          {getInitials(st.assignee.first_name || st.assignee.email)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditSubtask(st.id, st.title, st.assignee?.id ?? "")}
+                                      className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                      aria-label="Editar subtarea"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeletingSubtaskId(st.id)}
+                                      className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                      aria-label="Eliminar subtarea"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex gap-1">
+                                {SUBTASK_STATUSES.map((s) => (
+                                  <button
+                                    key={s.key}
+                                    type="button"
+                                    onClick={() => updateSubtaskMutation.mutate({ subtaskId: st.id, progress: s.progress })}
+                                    className={`flex-1 text-[10px] py-0.5 rounded-full font-medium transition-colors border ${
+                                      status === s.key
+                                        ? `${s.activeClass} border-transparent`
+                                        : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/60"
+                                    }`}
+                                  >
+                                    {s.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${cfg.barClass}`}
+                                  style={{ width: `${st.progress}%` }}
+                                />
+                              </div>
+                            </>
+                          )}
                         </li>
                       );
                     })}

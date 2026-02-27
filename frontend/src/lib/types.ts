@@ -27,6 +27,7 @@ export interface Subtask {
   id: string;
   title: string;
   progress: number;
+  order: number;
   assignee: User | null;
 }
 

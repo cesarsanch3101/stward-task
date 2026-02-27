@@ -1,5 +1,5 @@
 # Manual de Usuario — Stward Task
-**Versión:** 1.1 · **Idioma:** Español · **Fecha:** Febrero 2026
+**Versión:** 1.2 · **Idioma:** Español · **Fecha:** Febrero 2026
 
 ---
 
@@ -8,6 +8,7 @@
 1. [Introducción](#1-introducción)
 2. [Acceso al sistema](#2-acceso-al-sistema)
 3. [Espacios de trabajo](#3-espacios-de-trabajo)
+   - 3.5 [Dashboard & Gantt del workspace](#35-dashboard--gantt-del-workspace)
 4. [Tableros](#4-tableros)
 5. [Vista Kanban](#5-vista-kanban)
 6. [Vista Tabla](#6-vista-tabla)
@@ -34,8 +35,10 @@
 |---------|-------------|
 | Kanban | Organiza tareas en columnas de estado con arrastrar y soltar |
 | Tabla | Visualiza todas las tareas en formato de lista |
-| Dashboard | Estadísticas y gráficas del estado del proyecto |
-| Gantt | Línea de tiempo de tareas con fechas de inicio y fin |
+| Dashboard | Estadísticas y gráficas del estado del proyecto (por tablero) |
+| Gantt | Línea de tiempo de tareas con fechas de inicio y fin (por tablero) |
+| Dashboard Workspace | KPIs globales y resumen de todos los tableros del workspace |
+| Gantt Workspace | Línea de tiempo unificada agrupada por tablero |
 | Colaboración | Asigna múltiples personas a cada tarea con progreso individual |
 | Comentarios | Discute el avance directamente en cada tarea |
 | Notificaciones | Recibe alertas cuando cambia algo que te involucra |
@@ -111,6 +114,35 @@ El panel lateral izquierdo muestra todos tus espacios de trabajo con sus tablero
 1. Haz clic en el menú **⋯** junto al nombre del espacio de trabajo
 2. Selecciona **"Eliminar"**
 3. Confirma la acción en el diálogo de alerta
+
+### 3.5 Dashboard & Gantt del workspace
+
+Cada espacio de trabajo tiene una **vista consolidada** que unifica las tareas de todos sus tableros. Es la forma más rápida de ver el estado general de un proyecto complejo con múltiples tableros.
+
+**Cómo acceder:**
+Haz clic directamente en el **bloque del nombre del workspace** en el panel lateral (el recuadro con borde redondeado).
+
+**Vistas disponibles:**
+
+| Vista | Qué muestra |
+|-------|-------------|
+| **Dashboard** | KPIs globales + resumen por tablero + gráficas de estado y prioridad + carga del equipo |
+| **Gantt** | Línea de tiempo con todos los tableros como grupos, cada uno con un color distinto |
+
+**Dashboard del workspace:**
+- **4 KPIs globales:** Total de tareas, completadas, en progreso y vencidas (sumando todos los tableros)
+- **Resumen por tablero:** Cards con nombre del tablero, número de tareas, completadas y progreso promedio. Haz clic en un card para ir al tablero.
+- **Distribución por estado:** Gráfica de barras con la cantidad de tareas en cada estado (Pendiente, En Progreso, Retrasado, Completado)
+- **Carga por prioridad:** Distribución de tareas por nivel de prioridad
+- **Carga del equipo:** Tabla con el número de tareas asignadas a cada colaborador
+
+**Gantt del workspace:**
+- Muestra una fila de grupo por cada tablero (con su color identificativo)
+- Dentro de cada grupo, una barra por tarea con fechas de inicio y fin
+- Las barras de tareas vencidas se muestran en rojo
+- Mismo sistema de zoom: Días / Semanas / Meses / Ajustar
+- La línea vertical azul indica el día de hoy
+- El calendario cubre 2 meses atrás + 13 meses adelante
 
 ---
 
@@ -305,6 +337,17 @@ Pendiente / En Progreso / Retrasado / Completado
 - El porcentaje de progreso usa el valor individual de cada asignación (`individual_progress`)
 - Si un usuario solo aparece como nombre externo (sin cuenta), se muestra igual en la tabla
 
+### 7.5 Exportar datos desde el Dashboard
+
+En la esquina superior derecha del Dashboard (tablero o workspace) hay dos botones:
+
+| Botón | Qué hace |
+|-------|----------|
+| **Exportar CSV** | Descarga un archivo `.csv` con todas las tareas visibles. Compatible con Excel (incluye codificación UTF-8 para caracteres en español). Columnas: Título, Estado, Prioridad, Asignado, Fecha inicio, Fecha fin, Progreso |
+| **Exportar PDF** | Abre el diálogo de impresión del navegador. El sidebar y los botones se ocultan automáticamente para que el PDF quede limpio |
+
+> **Tip para PDF:** En el diálogo de impresión, selecciona "Guardar como PDF" en el destino para guardar el archivo sin imprimir.
+
 ---
 
 ## 8. Vista Gantt
@@ -419,6 +462,25 @@ La tarea aparece al final de la columna seleccionada.
   - **Completado** (verde) → 100% de avance
 - Al cambiar el estado, el progreso del colaborador asignado en la sección "Progreso por Colaborador" se actualiza automáticamente de forma proporcional
 
+**Editar una subtarea:**
+1. Pasa el cursor sobre la subtarea — aparece el ícono de lápiz ✏️ en la esquina derecha
+2. Haz clic en el lápiz para activar el modo de edición inline
+3. Modifica el **título** (también puedes presionar Enter para guardar o Escape para cancelar)
+4. Cambia el **colaborador asignado** en el desplegable
+5. Haz clic en el ícono ✓ para guardar, o ✕ para cancelar
+
+**Reordenar subtareas:**
+- Cada subtarea tiene dos flechas ↑↓ en el lado izquierdo
+- Haz clic en ↑ para moverla una posición arriba, ↓ para bajarla
+- Las flechas se desactivan automáticamente cuando la subtarea ya está en el extremo superior o inferior
+- El orden se guarda en el servidor y persiste al cerrar y reabrir el diálogo
+
+**Eliminar una subtarea:**
+1. Pasa el cursor sobre la subtarea — aparece el ícono de papelera 🗑️ junto al lápiz
+2. Haz clic en la papelera — aparece "¿Eliminar? ✓ ✕" en rojo
+3. Haz clic en ✓ para confirmar la eliminación, o ✕ para cancelar
+4. El progreso del colaborador asignado se recalcula automáticamente al eliminar
+
 **Progreso:**
 - *Con múltiples colaboradores:* Cada persona tiene su propio deslizador de progreso individual. El progreso total se calcula automáticamente como el promedio.
 - *Sin colaboradores:* Un único deslizador de progreso general.
@@ -473,7 +535,7 @@ Cuando una tarea tiene múltiples colaboradores:
 - El **Progreso Total** es el promedio del progreso de todos los colaboradores
 - En la tarjeta Kanban, la barra se segmenta mostrando el avance de cada persona con su color
 
-> **Progreso automático vía subtareas:** Si asignas subtareas a los colaboradores, el sistema calcula automáticamente su progreso individual según cuántas subtareas suyas estén en la columna "Completado" (método binario: subtarea completada = 100%). Los deslizadores manuales siguen disponibles para casos donde no hay subtareas.
+> **Progreso automático vía subtareas:** Si asignas subtareas a los colaboradores, el sistema calcula automáticamente su progreso individual usando el método proporcional con 4 estados: Pendiente=0%, Retrasado=25%, En Proceso=50%, Completado=100%. El sistema promedia el progreso de todas las subtareas del colaborador. Los deslizadores manuales siguen disponibles para casos donde no hay subtareas.
 
 ### 10.3 Colores de colaboradores
 

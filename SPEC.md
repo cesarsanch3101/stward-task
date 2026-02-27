@@ -2,7 +2,7 @@
 ## Stward Task — Kanban Board Application
 **Fecha:** 2026-02-17
 **Autor:** AG-ARCHITECT (Mesa Agéntica SASE)
-**Estado:** SPRINT 6 COMPLETADO — Todos los sprints cerrados
+**Estado:** SPRINT 8 COMPLETADO — Todos los sprints cerrados
 
 ---
 
@@ -341,6 +341,50 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 **Mapeo estado→progreso:** Pendiente=0% · En Proceso=50% · Retrasado=25% · Completado=100%
 **Cálculo:** `round(sum(st.progress for st in user_subtasks) / len(user_subtasks))`
+
+---
+
+### SPRINT 7 — Dashboard & Gantt Consolidado por Workspace + Edición de Subtareas ✅ COMPLETADO
+
+**Objetivo:** Vista unificada de todas las tareas de un workspace (multi-board), navegable desde el sidebar. Edición inline de subtareas en el diálogo de tarea.
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| Sidebar: workspace title como `<Link href="/workspace/[id]">` con estilo botón activo | HIGH | ✅ `app-sidebar.tsx` |
+| `workspaceView: "dashboard" \| "gantt"` en `ui-store.ts` | MEDIUM | ✅ `ui-store.ts` |
+| Hook `useWorkspaceDetail`: `useQueries` paralelo para todos los boards del workspace | HIGH | ✅ `use-workspace-detail.ts` |
+| Página `/workspace/[id]/page.tsx` con header, toggle Dashboard/Gantt, auth guard | HIGH | ✅ `app/workspace/[id]/page.tsx` |
+| `WorkspaceDashboard`: KPIs globales, resumen por tablero, gráficas estado/prioridad, carga del equipo | HIGH | ✅ `workspace-dashboard.tsx` |
+| `WorkspaceGantt`: grupos = boards, 8 colores distintos, mismo zoom que board gantt | HIGH | ✅ `workspace-gantt.tsx` |
+| Gantt individual y workspace extendido a 13 meses adelante (antes 7) | MEDIUM | ✅ `gantt-view.tsx`, `workspace-gantt.tsx` |
+| Edición inline de subtareas (pencil icon → Input + assignee select + save/cancel) | HIGH | ✅ `edit-task-dialog.tsx` |
+
+**Ruta:** `/workspace/[id]` — sin cambios de backend, solo frontend.
+**Hook:** `useWorkspaceDetail` reutiliza `boardKeys.detail(id)` → TanStack Query deduplica fetches ya en cache.
+
+---
+
+### SPRINT 8 — Completud & Calidad ✅ COMPLETADO
+
+**Objetivo:** Completar UX de subtareas (delete + reorder), auditoría de seguridad, mejoras Lighthouse, y exportación de datos CSV/PDF.
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| Delete subtarea: botón trash + confirm inline + `deleteTask()` | HIGH | ✅ `edit-task-dialog.tsx` |
+| `TaskService.delete()` → llamar `recalculate_parent_progress` si subtarea | HIGH | ✅ `services.py` |
+| `SubtaskSchema` añade `order: int = 0` | MEDIUM | ✅ `schemas.py` |
+| `TaskUpdateSchema` añade `order: int | None = None` | MEDIUM | ✅ `schemas.py` |
+| Reorder subtareas: botones ↑↓ + swap de `order` con 2 calls `updateTask` | HIGH | ✅ `edit-task-dialog.tsx` |
+| `Subtask` type añade `order: number`, `updateTask` payload añade `order?: number` | MEDIUM | ✅ `types.ts`, `api.ts` |
+| `npm audit fix` — corrige ajv, minimatch, rollup (3 paquetes) | HIGH | ✅ `package-lock.json` |
+| `next.config.mjs` — `compress: true` + `optimizePackageImports` | MEDIUM | ✅ `next.config.mjs` |
+| `globals.css` — `@media print` styles para exportar PDF | MEDIUM | ✅ `globals.css` |
+| `export-utils.ts` — `exportTasksCSV()` con BOM UTF-8 | HIGH | ✅ `export-utils.ts` |
+| Botones "Exportar CSV" y "Exportar PDF" en Dashboard tablero y workspace | HIGH | ✅ `dashboard-view.tsx`, `workspace-dashboard.tsx` |
+
+**Vulnerabilidades aceptadas (no corregibles sin breaking changes):**
+- `glob/eslint-config-next` HIGH → dev-only, no llega a producción
+- `next` × 2 HIGH → no aplican: sin `remotePatterns`, sin RSC inseguro. Fix requiere Next.js 16 (breaking).
 
 ---
 

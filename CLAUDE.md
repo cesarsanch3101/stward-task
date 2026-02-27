@@ -71,6 +71,8 @@
 | Sprint 4 | Collaborative Power (multi-usuario, emails, comentarios) | ✅ COMPLETADO |
 | Sprint 5 | Roles, Visibilidad & Auto-Gestión (check_overdue, GET /users, permisos) | ✅ COMPLETADO |
 | Sprint 6 | Progreso Automático por Subtareas (SubtaskSchema, recalculate_parent_progress) | ✅ COMPLETADO |
+| Sprint 7 | Dashboard & Gantt Consolidado por Workspace + Edición de Subtareas | ✅ COMPLETADO |
+| Sprint 8 | Completud & Calidad (delete/reorder subtareas, seguridad, Lighthouse, exportar CSV/PDF) | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -89,7 +91,16 @@
 - **Permisos de workspace:** Todos los miembros del workspace (no solo el owner) pueden crear, editar y mover tareas. `Q(owner=user) | Q(members=user)` + `.distinct()` en `TaskService`.
 - **Bloqueo de avance por padre/dependencias:** Al mover una tarea hacia adelante (columna con `order` mayor), `TaskService.move()` valida: (1) si tiene tarea padre, el padre debe tener `progress >= 100`; (2) si tiene dependencias, todas deben tener `progress >= 100`. Mover hacia atrás no está bloqueado.
 - **Subtareas internas con progreso proporcional (Sprint 6):** Las subtareas son `Task` objetos con `parent_id` pero **NO aparecen en el tablero Kanban** (`parent_id__isnull=True` en `BoardService.get_detail()`). Se gestionan desde el panel "Subtareas" en `EditTaskDialog`. Cada subtarea tiene 4 estados (Pendiente=0% / En Proceso=50% / Retrasado=25% / Completado=100%) seleccionables con pills de color. `recalculate_parent_progress()` usa **promedio proporcional** (no binario): `round(sum(st.progress) / len(subtasks))`. `createSubtask()` usa `assignee_id` (FK singular). `SubtaskSchema` expone `id, title, progress, assignee`.
-- **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt
+- **Dashboard & Gantt consolidado por Workspace (Sprint 7):** Haciendo clic en el nombre del workspace en el sidebar se navega a `/workspace/[id]`. Muestra dos vistas: **Dashboard** (KPIs globales, resumen por tablero con cards clickables, distribución por estado y prioridad, carga del equipo) y **Gantt** (grupos = tableros, 8 colores distintos por tablero). Hook `useWorkspaceDetail` usa `useQueries` para fetchear todos los boards en paralelo. `workspaceView` en `ui-store.ts`.
+- **Edición inline de subtareas (Sprint 7):** En `EditTaskDialog`, cada subtarea tiene un botón de lápiz que activa modo edición inline. Permite cambiar el título (Enter/Escape) y el colaborador asignado. Usa `api.updateTask(subtaskId, { title, assignee_ids })`.
+- **Sidebar workspace link:** Título del workspace es un `<Link href="/workspace/[id]">` con estilo botón (`bg-white/10 border border-white/20 rounded-md`). Se resalta con `bg-white/20 border-white/30` cuando estás en esa ruta.
+- **Gantt extendido:** Timeline del Gantt (tablero individual y workspace) cubre 13 meses hacia adelante (antes 7). `safety < 18` evita bucle infinito.
+- **Eliminar subtareas (Sprint 8):** Botón trash en cada subtarea → confirmación inline "¿Eliminar? ✓ ✕" → `deleteTask(subtaskId)` → `recalculate_parent_progress`. Backend: `TaskService.delete()` ahora llama `recalculate_parent_progress` si `parent_id`.
+- **Reordenar subtareas (Sprint 8):** Botones ↑↓ en cada subtarea → swap de `order` entre adyacentes → 2 calls `updateTask`. `SubtaskSchema` expone `order: int`. `TaskUpdateSchema` acepta `order: int | None`. Subtareas renderizadas sorted por `order`.
+- **Exportar datos (Sprint 8):** Botones "Exportar CSV" y "Exportar PDF" en Dashboard del tablero y Dashboard del workspace. CSV con BOM UTF-8 (compatible Excel). PDF vía `window.print()` con `@media print` CSS que oculta sidebar y botones. Util: `frontend/src/lib/export-utils.ts`.
+- **Seguridad (Sprint 8):** `npm audit fix` aplicó 3 fixes (ajv, minimatch, rollup). 4 HIGH restantes son falsos positivos: `glob/eslint-config-next` (dev-only) y `next` × 2 (no aplican: sin `remotePatterns`, sin RSC inseguro). Backend Python: sin vulnerabilidades conocidas (stack reciente).
+- **Performance (Sprint 8):** `next.config.mjs` añade `compress: true` y `experimental.optimizePackageImports`. `globals.css` incluye `@media print` styles. `layout.tsx` ya tenía `lang="es"`, skip link y meta description.
+- **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt, Dashboard Workspace, Gantt Workspace
 - **CI/CD:** GitHub Actions (7 jobs: lint → test → build → E2E → SBOM → security scan)
 - **Tests:** 56 backend (pytest, 88% cov) + 18 frontend (Vitest + RTL) + Playwright E2E
 
@@ -110,6 +121,13 @@
 - **Mapeo estado→progreso en subtareas**: Pendiente=0, En Proceso=50, Retrasado=25, Completado=100. `progressToSubtaskStatus()` en `edit-task-dialog.tsx`: 0→pending, <40→delayed, <100→in_progress, 100→completed.
 - **createSubtask usa `assignee_id`** (FK directo, no array) para que `recalculate_parent_progress` pueda leer `subtask.assignee_id`.
 - **Regex `/s` flag**: No compatible con TS target por defecto → usar `[\s\S]` en lugar de `.` con flag `s`.
+- **useWorkspaceDetail**: usa `boardKeys.detail(id)` para que TanStack Query deduplique si los boards ya están en cache. Devuelve `allTasks` filtrando `c.tasks ?? []` de todos los boards.
+- **Workspace Gantt groups**: boards como grupos (no columnas), 8 colores rotativos. `expandedGroups` se sincroniza vía `useEffect` cuando cambian los boards.
+- **editSubtaskMutation**: `api.updateTask(subtaskId, { title, assignee_ids: assigneeId ? [assigneeId] : [] })` — `updateTask` recibe array `assignee_ids`, no `assignee_id` singular (que solo usa `createSubtask`).
+- **reorderSubtaskMutation**: swap de `order` entre dos subtareas adyacentes con 2 calls `updateTask` secuenciales. `TaskUpdateSchema.order: int | None = Field(None, ge=0, le=100000)`. `SubtaskSchema.order: int = 0`.
+- **deleteSubtask recalculate**: `TaskService.delete()` guarda `parent_id = task.parent_id` antes del soft_delete, luego llama `recalculate_parent_progress(task)` fuera del `transaction.atomic()`. La tarea ya está soft-deleted, así que `deleted_at__isnull=True` la excluye del cálculo.
+- **npm audit HIGH falsos positivos**: `glob` vía `eslint-config-next` es dev-only. `next` × 2 requieren configuraciones (remotePatterns, RSC inseguro) que no usamos. 14.2.35 es el último patch de 14.x. Upgrade a 15.x es breaking.
+- **exportTasksCSV**: BOM `\uFEFF` + `\r\n` separador. Columnas: Título, Estado, Prioridad, Asignado, Inicio, Fin, Progreso. En `frontend/src/lib/export-utils.ts`.
 - **Demo user:** admin@stwards.com / admin123
 - **DB volume:** Si cambias credenciales en `.env`, ejecutar `docker compose down -v` para recrear el volumen
 
@@ -137,3 +155,8 @@
 - `frontend/src/lib/auth.ts` - Token storage/management
 - `frontend/src/lib/types.ts` - TypeScript type definitions
 - `frontend/src/lib/hooks/use-users.ts` - All active users hook (staleTime 5min)
+- `frontend/src/lib/hooks/use-workspace-detail.ts` - Hook paralelo para boards de un workspace
+- `frontend/src/app/workspace/[id]/page.tsx` - Página consolidada del workspace
+- `frontend/src/components/workspace/workspace-dashboard.tsx` - Dashboard multi-board
+- `frontend/src/components/workspace/workspace-gantt.tsx` - Gantt multi-board (grupos = tableros)
+- `frontend/src/lib/export-utils.ts` - Util `exportTasksCSV()` con BOM UTF-8

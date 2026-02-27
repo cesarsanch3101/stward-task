@@ -384,6 +384,7 @@ class TaskService:
     @staticmethod
     def delete(task: Task, user: User = None) -> None:
         column = task.column
+        parent_id = task.parent_id
         logger.info("Task soft-deleted: %s", task.id)
         with transaction.atomic():
             task.soft_delete(deleted_by=user)
@@ -392,6 +393,9 @@ class TaskService:
                 column.tasks.order_by("order").values_list("id", flat=True)
             ):
                 Task.objects.filter(id=tid).update(order=idx)
+        # If this was a subtask, recalculate parent's per-user progress
+        if parent_id:
+            TaskService.recalculate_parent_progress(task)
 
     @staticmethod
     def move(task: Task, *, column_id: UUID, new_order: int, user: User) -> Task:

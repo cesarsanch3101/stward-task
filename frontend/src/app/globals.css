@@ -74,3 +74,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Print styles (Exportar PDF) ── */
+@media print {
+  aside,
+  [data-sidebar],
+  nav,
+  .no-print {
+    display: none !important;
+  }
+  #main-content {
+    margin: 0;
+    padding: 0;
+    overflow: visible !important;
+  }
+  body {
+    background: white;
+    color: black;
+    font-size: 12pt;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}

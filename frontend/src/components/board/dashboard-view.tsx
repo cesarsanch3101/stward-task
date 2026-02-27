@@ -16,9 +16,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Clock, AlertCircle, Users, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, Users, AlertTriangle, FileDown, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { STATUS_BG } from "@/lib/status-colors";
+import { exportTasksCSV } from "@/lib/export-utils";
 import type { Board } from "@/lib/types";
 
 interface Props {
@@ -136,6 +138,29 @@ export function DashboardView({ board }: Props) {
 
     return (
         <div className="flex-1 overflow-auto bg-slate-50/50 p-6 space-y-6">
+
+            {/* Toolbar de exportación */}
+            <div className="flex items-center justify-end gap-2 no-print">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => exportTasksCSV(allTasks, `${board.name.replace(/\s+/g, "-").toLowerCase()}-tareas.csv`)}
+                >
+                    <FileDown className="h-3.5 w-3.5" />
+                    Exportar CSV
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => window.print()}
+                >
+                    <FileText className="h-3.5 w-3.5" />
+                    Exportar PDF
+                </Button>
+            </div>
+
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard

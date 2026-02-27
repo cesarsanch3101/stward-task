@@ -53,6 +53,7 @@ class SubtaskSchema(Schema):
     id: UUID
     title: str
     progress: int
+    order: int = 0
     assignee: UserMinimalSchema | None = None
 
 
@@ -118,6 +119,7 @@ class TaskUpdateSchema(Schema):
     start_date: date | None = None
     end_date: date | None = None
     progress: int | None = Field(None, ge=0, le=100)
+    order: int | None = Field(None, ge=0, le=100000)
     assignee_ids: list[UUID] | None = None
     parent_id: UUID | None = None
     dependency_ids: list[UUID] | None = None

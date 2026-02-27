@@ -34,11 +34,18 @@ export function AppSidebar() {
         <div className="p-4 space-y-6">
           {workspaces.map((ws) => (
             <div key={ws.id}>
-              <div className="flex items-center justify-between mb-2 px-2">
-                <span className="text-[11px] font-bold text-white/50 uppercase tracking-[0.1em] flex-1 min-w-0">
-                  {ws.name}
-                </span>
-                <div className="shrink-0 ml-1">
+              <div className="flex items-center gap-1 mb-2">
+                <Link
+                  href={`/workspace/${ws.id}`}
+                  className={`flex items-center flex-1 min-w-0 bg-white/10 border border-white/20 rounded-md px-3 py-1.5 hover:bg-white/15 transition-colors ${
+                    pathname === `/workspace/${ws.id}` ? "bg-white/20 border-white/30" : ""
+                  }`}
+                >
+                  <span className="text-sm font-bold text-white tracking-wide flex-1 min-w-0 break-words leading-tight">
+                    {ws.name}
+                  </span>
+                </Link>
+                <div className="shrink-0">
                   <WorkspaceMenu workspace={ws} />
                 </div>
               </div>

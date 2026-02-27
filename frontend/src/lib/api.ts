@@ -251,6 +251,7 @@ export function updateTask(
     start_date?: string | null;
     end_date?: string | null;
     progress?: number;
+    order?: number;
     assignee_ids?: string[];
     parent_id?: string | null;
     dependency_ids?: string[];

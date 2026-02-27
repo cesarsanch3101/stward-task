@@ -54,13 +54,13 @@ export function GanttView({ board }: Props) {
     const timelineRange = useMemo(() => {
         const now = new Date();
         const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-        const end = new Date(now.getFullYear(), now.getMonth() + 7, 0);
+        const end = new Date(now.getFullYear(), now.getMonth() + 13, 0);
 
         const months: { name: string; days: number; startDay: number; year: number }[] = [];
         let curr = new Date(start);
 
         let safety = 0;
-        while (curr <= end && safety < 12) {
+        while (curr <= end && safety < 18) {
             const monthName = curr.toLocaleDateString("es", { month: "short" });
             const year = curr.getFullYear();
             const daysInMonth = new Date(curr.getFullYear(), curr.getMonth() + 1, 0).getDate();

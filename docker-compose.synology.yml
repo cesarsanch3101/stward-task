@@ -1,0 +1,160 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stward Task — Deploy Synology NAS (DS1522+ / DSM 7.2+ Container Manager)
+# Archivo autónomo: NO requiere docker-compose.yml como base.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ── PASO A PASO ──────────────────────────────────────────────────────────────
+#
+#  1. Copia .env.example → .env y edita estos campos:
+#       SECRET_KEY=<genera con: python3 -c "import secrets; print(secrets.token_hex(50))">
+#       POSTGRES_PASSWORD=<password seguro>
+#       DJANGO_ENV=production
+#       ALLOWED_HOSTS=192.168.1.XXX,tudominio.synology.me
+#       CORS_ALLOWED_ORIGINS=http://192.168.1.XXX:3000
+#
+#  2. Edita NEXT_PUBLIC_API_URL abajo con la IP real de tu NAS.
+#
+#  3. Construir e iniciar:
+#       docker compose -f docker-compose.synology.yml up --build -d
+#
+#  4. Crear usuario admin (solo la primera vez):
+#       docker compose -f docker-compose.synology.yml exec backend \
+#         python manage.py shell -c "
+#       from apps.accounts.models import User
+#       User.objects.create_superuser(
+#         email='admin@stwards.com',
+#         username='admin@stwards.com',
+#         password='admin123'
+#       )"
+#
+#  5. Acceder desde el navegador:
+#       Frontend:  http://192.168.1.XXX:3000
+#       API Docs:  http://192.168.1.XXX:8000/api/v1/docs
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: stward_db
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (broker Celery) ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: stward_redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Django + Gunicorn ──────────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: stward_backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DJANGO_ENV=production
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn config.wsgi:application
+               --bind 0.0.0.0:8000
+               --workers 2
+               --threads 2
+               --timeout 120
+               --access-logfile -
+               --error-logfile -"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Celery Worker ──────────────────────────────────────────────────────────
+  celery:
+    build: ./backend
+    container_name: stward_celery
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DJANGO_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A config.celery worker --loglevel=info --concurrency=2
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config.celery", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Celery Beat (check_overdue_tasks diario 00:05) ─────────────────────────
+  celery-beat:
+    build: ./backend
+    container_name: stward_celery_beat
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DJANGO_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A config.celery beat --loglevel=info
+    healthcheck:
+      disable: true
+
+  # ── Next.js Frontend (build de producción standalone) ─────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        # ⚠️  Cambia por la IP local de tu NAS (o dominio DDNS)
+        # Ejemplo con DDNS: http://mi-nas.synology.me:8000/api/v1
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://192.168.1.100:8000/api/v1}
+    container_name: stward_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL_INTERNAL=http://backend:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  pgdata:
+    name: stward_pgdata
