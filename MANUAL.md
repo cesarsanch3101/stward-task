@@ -1,5 +1,5 @@
 # Manual de Usuario — Stward Task
-**Versión:** 1.2 · **Idioma:** Español · **Fecha:** Febrero 2026
+**Versión:** 1.3 · **Idioma:** Español · **Fecha:** Febrero 2026
 
 ---
 
@@ -132,7 +132,7 @@ Haz clic directamente en el **bloque del nombre del workspace** en el panel late
 **Dashboard del workspace:**
 - **4 KPIs globales:** Total de tareas, completadas, en progreso y vencidas (sumando todos los tableros)
 - **Resumen por tablero:** Cards con nombre del tablero, número de tareas, completadas y progreso promedio. Haz clic en un card para ir al tablero.
-- **Distribución por estado:** Gráfica de barras con la cantidad de tareas en cada estado (Pendiente, En Progreso, Retrasado, Completado)
+- **Distribución por estado:** Gráfica de dona con la cantidad de tareas en cada estado. La leyenda muestra un badge con el conteo exacto por estado (Pendiente, En Progreso, Retrasado, Completado)
 - **Carga por prioridad:** Distribución de tareas por nivel de prioridad
 - **Carga del equipo:** Tabla con el número de tareas asignadas a cada colaborador
 
@@ -310,7 +310,7 @@ En el encabezado del tablero, haz clic en el botón **"Dashboard"**.
 ### 7.3 Gráficas
 
 **Distribución por Estado (dona)**
-Muestra cuántas tareas hay en cada columna del tablero.
+Muestra cuántas tareas hay en cada columna del tablero. La leyenda lateral derecha muestra cada estado con su color y un **badge con el número de tareas** en ese estado. El badge es legible en modo claro y oscuro.
 
 **Carga de Trabajo por Prioridad (barras verticales)**
 Muestra cuántas tareas existen por nivel de prioridad (solo los niveles con tareas aparecen).
@@ -823,5 +823,102 @@ Sí. Si una tarea tiene dependencias, no puede moverse a una columna más avanza
 
 ---
 
-*Manual generado automáticamente a partir del código fuente de Stward Task v1.1*
+## 17. Inicio de sesión con Google (SSO)
+
+### 17.1 ¿Qué es el inicio de sesión con Google?
+
+Stward Task admite autenticación con Google (SSO). En lugar de recordar una contraseña separada, puedes usar tu cuenta de Google Workspace para acceder directamente.
+
+**Requisito:** Tu correo electrónico (o dominio) debe estar en la lista de acceso autorizado. Si no puedes iniciar sesión, contacta al administrador para que agregue tu correo.
+
+### 17.2 Cómo iniciar sesión con Google
+
+1. Ve a la pantalla de login (`/login`)
+2. Haz clic en el botón **"Continuar con Google"**
+3. Se abrirá el selector de cuentas de Google
+4. Selecciona tu cuenta de Google Workspace
+5. Si tu correo está autorizado, entrarás directamente a la aplicación
+6. Si no está autorizado, verás el mensaje: *"Tu cuenta no tiene acceso. Contacta al administrador."*
+
+> **Primera vez:** Si es tu primer acceso con Google, el sistema creará automáticamente tu cuenta con el rol pre-asignado y un espacio de trabajo inicial.
+
+### 17.3 Login con email y contraseña (respaldo)
+
+El login tradicional con email y contraseña sigue disponible. Úsalo si:
+- No tienes cuenta de Google Workspace
+- Prefieres autenticarte sin depender de Google
+- Eres la cuenta de administrador inicial del sistema
+
+---
+
+## 18. Control de Acceso (Administradores)
+
+### 18.1 ¿Qué es el Control de Acceso?
+
+El panel de **Control de Acceso** (`/admin/users`) permite a los administradores gestionar quién puede ingresar al sistema con Google y qué rol tendrá al registrarse por primera vez.
+
+> Solo los usuarios con rol **Administrador** pueden ver y usar este panel. El enlace "Control de Acceso" aparece en la parte inferior de la barra lateral izquierda.
+
+### 18.2 Acceder al panel
+
+1. En la barra lateral izquierda, en la parte inferior, haz clic en **"Control de Acceso"** (icono de escudo)
+2. Solo visible para administradores
+
+### 18.3 Agregar un correo específico
+
+1. En el formulario superior, selecciona **"Correo específico"**
+2. Escribe el correo electrónico completo (ej: `juan@stwards.com`)
+3. Selecciona el rol que tendrá al registrarse: Administrador, Gestor, Desarrollador u Observador
+4. Haz clic en **"Agregar"** (o presiona Enter)
+
+El correo aparecerá en la tabla con estado **"Pendiente"** hasta que el usuario haga su primer login.
+
+### 18.4 Agregar un dominio completo
+
+Si quieres dar acceso a todos los correos de un dominio (ej: todos los `@stwards.com`):
+
+1. Selecciona **"Dominio completo"**
+2. Escribe solo el dominio, sin el `@` (ej: `stwards.com`)
+3. Selecciona el rol para todos los que se registren con ese dominio
+4. Haz clic en **"Agregar"**
+
+> **Prioridad:** Si un correo específico y un dominio coexisten en la lista, el correo específico tiene prioridad sobre el dominio al asignar el rol.
+
+### 18.5 Importar lista CSV
+
+Para agregar múltiples correos/dominios a la vez:
+
+1. Prepara un archivo `.csv` con este formato:
+   ```
+   email_o_dominio,rol
+   juan@stwards.com,desarrollador
+   maria@empresa.com,gestor
+   stwards.com,observador
+   ```
+   (La primera fila es el encabezado y se ignora)
+2. Haz clic en el botón **"CSV"**
+3. Selecciona tu archivo
+4. Las entradas se importan automáticamente
+
+**Roles válidos:** `administrador`, `gestor`, `desarrollador`, `observador`
+
+### 18.6 Eliminar una entrada
+
+1. En la tabla, localiza la entrada a eliminar
+2. Haz clic en el ícono de papelera al final de la fila
+3. Aparecerá una confirmación inline: **"¿Eliminar? ✓ ✕"**
+4. Haz clic en ✓ para confirmar o ✕ para cancelar
+
+> **Nota:** Eliminar una entrada de la lista no elimina al usuario si ya se registró. Solo impide que nuevos usuarios con ese correo/dominio se registren en el futuro.
+
+### 18.7 Estado de las entradas
+
+| Estado | Significado |
+|--------|-------------|
+| **Pendiente** | El correo/dominio está en la lista pero nadie se ha registrado aún |
+| **Activo** | Al menos un usuario se ha registrado usando esta entrada |
+
+---
+
+*Manual generado automáticamente a partir del código fuente de Stward Task v1.4*
 *Dominio: stwards.com · Soporte: contacta al administrador de tu instancia*

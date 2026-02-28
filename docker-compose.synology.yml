@@ -67,7 +67,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - DJANGO_ENV=production
+      - DJANGO_ENV=synology
     ports:
       - "8000:8000"
     depends_on:
@@ -75,15 +75,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: >
-      sh -c "python manage.py migrate --noinput &&
-             gunicorn config.wsgi:application
-               --bind 0.0.0.0:8000
-               --workers 2
-               --threads 2
-               --timeout 120
-               --access-logfile -
-               --error-logfile -"
+    command: sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile -"
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
@@ -99,7 +91,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - DJANGO_ENV=production
+      - DJANGO_ENV=synology
     depends_on:
       backend:
         condition: service_healthy
@@ -120,7 +112,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - DJANGO_ENV=production
+      - DJANGO_ENV=synology
     depends_on:
       backend:
         condition: service_healthy
@@ -139,6 +131,7 @@ services:
         # ⚠️  Cambia por la IP local de tu NAS (o dominio DDNS)
         # Ejemplo con DDNS: http://mi-nas.synology.me:8000/api/v1
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://192.168.1.100:8000/api/v1}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     container_name: stward_frontend
     restart: unless-stopped
     ports:

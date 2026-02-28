@@ -8,5 +8,7 @@ env = os.environ.get("DJANGO_ENV", "development")
 
 if env == "production":
     from .production import *  # noqa: F401, F403
+elif env == "synology":
+    from .synology import *  # noqa: F401, F403
 else:
     from .development import *  # noqa: F401, F403

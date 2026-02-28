@@ -99,3 +99,30 @@ class JWTAuth(HttpBearer):
 
 # Singleton instance for use in API decorators
 jwt_auth = JWTAuth()
+
+
+def verify_google_token(token: str) -> dict | None:
+    """
+    Validate a Google id_token and return its payload.
+    Returns None if the token is invalid or verification fails.
+    """
+    from django.conf import settings as django_settings
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+
+        client_id = django_settings.GOOGLE_CLIENT_ID
+        if not client_id:
+            logger.error("GOOGLE_CLIENT_ID not configured")
+            return None
+
+        id_info = google_id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            client_id,
+            clock_skew_in_seconds=10,
+        )
+        return id_info
+    except Exception as e:
+        logger.warning("Google token verification failed: %s", e)
+        return None

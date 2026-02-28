@@ -1,5 +1,6 @@
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth";
 import {
+  AllowedEmail,
   Board,
   BoardSummary,
   Column,
@@ -146,6 +147,42 @@ export function register(data: {
 
 export function getMe() {
   return fetcher<User>("/auth/me");
+}
+
+export function googleAuth(idToken: string) {
+  return fetcher<TokenPair>("/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
+// ─── AllowedEmail (allowlist) ─────────────────────
+export function getAllowedEmails() {
+  return fetcher<AllowedEmail[]>("/auth/allowed-emails");
+}
+
+export function createAllowedEmail(data: {
+  email?: string;
+  domain?: string;
+  role: string;
+}) {
+  return fetcher<AllowedEmail>("/auth/allowed-emails", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteAllowedEmail(id: number) {
+  return fetchNoContent(`/auth/allowed-emails/${id}`, { method: "DELETE" });
+}
+
+export function bulkCreateAllowedEmails(
+  entries: Array<{ email?: string; domain?: string; role: string }>
+) {
+  return fetcher<AllowedEmail[]>("/auth/allowed-emails/bulk", {
+    method: "POST",
+    body: JSON.stringify(entries),
+  });
 }
 
 // ─── Workspaces ──────────────────────────────────

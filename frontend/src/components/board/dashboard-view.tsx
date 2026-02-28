@@ -133,7 +133,17 @@ export function DashboardView({ board }: Props) {
             }))
             .sort((a, b) => b.total - a.total);
 
-        return { total, completed, delayed, avgProgress, statusData, priorityData, teamWorkload };
+        const statusCounts = { pending: 0, in_progress: 0, delayed: 0, completed: 0 };
+        board.columns.forEach((col) => {
+            const count = (col.tasks || []).length;
+            if (col.status in statusCounts) {
+                (statusCounts as Record<string, number>)[col.status] += count;
+            } else {
+                statusCounts.pending += count;
+            }
+        });
+
+        return { total, completed, delayed, avgProgress, statusData, priorityData, teamWorkload, statusCounts };
     }, [allTasks, board.columns]);
 
     return (
@@ -225,22 +235,20 @@ export function DashboardView({ board }: Props) {
                         </div>
                         {/* Leyenda lateral derecha */}
                         <div className="flex flex-col gap-3 pr-4">
-                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-slate-300 ring-1 ring-slate-400/60" />
-                                Pendiente
-                            </span>
-                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-yellow-200 ring-1 ring-yellow-500/60" />
-                                En Progreso
-                            </span>
-                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-red-200 ring-1 ring-red-500/60" />
-                                Retrasado
-                            </span>
-                            <span className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                                <span className="h-3 w-3 rounded-full flex-shrink-0 bg-green-200 ring-1 ring-green-500/60" />
-                                Completado
-                            </span>
+                            {[
+                                { label: "Pendiente",   cls: "bg-slate-300 ring-slate-400/60",   count: stats.statusCounts.pending },
+                                { label: "En Progreso", cls: "bg-yellow-200 ring-yellow-500/60", count: stats.statusCounts.in_progress },
+                                { label: "Retrasado",   cls: "bg-red-200 ring-red-500/60",       count: stats.statusCounts.delayed },
+                                { label: "Completado",  cls: "bg-green-200 ring-green-500/60",   count: stats.statusCounts.completed },
+                            ].map(({ label, cls, count }) => (
+                                <span key={label} className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                    <span className={`h-3 w-3 rounded-full flex-shrink-0 ring-1 ${cls}`} />
+                                    {label}
+                                    <span className="ml-auto text-[10px] font-bold tabular-nums bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100 px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                        {count}
+                                    </span>
+                                </span>
+                            ))}
                         </div>
                     </CardContent>
                 </Card>

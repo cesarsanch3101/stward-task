@@ -1,10 +1,23 @@
 // ─── API response types (mirror Django Ninja schemas) ───
 
+export type UserRole = "administrador" | "gestor" | "desarrollador" | "observador";
+
 export interface User {
   id: string;
   email: string;
   first_name: string;
   last_name: string;
+  role: UserRole;
+  avatar_url: string | null;
+}
+
+export interface AllowedEmail {
+  id: number;
+  email: string | null;
+  domain: string | null;
+  role: UserRole;
+  used_at: string | null;
+  created_at: string;
 }
 
 export interface TaskAssignment {

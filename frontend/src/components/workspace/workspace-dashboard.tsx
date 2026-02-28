@@ -119,7 +119,14 @@ export function WorkspaceDashboard({ boards, allTasks, isLoading }: Props) {
       return { id: b.id, name: b.name, total: tasks.length, completed: comp, avgProgress: avg };
     });
 
-    return { total, completed, delayed, avgProgress, statusData, priorityData, teamWorkload, boardStats };
+    const perStatusCounts = {
+      pending:     statusCounts["pending"]?.value     ?? 0,
+      in_progress: statusCounts["in_progress"]?.value ?? 0,
+      delayed:     statusCounts["delayed"]?.value     ?? 0,
+      completed:   statusCounts["completed"]?.value   ?? 0,
+    };
+
+    return { total, completed, delayed, avgProgress, statusData, priorityData, teamWorkload, boardStats, perStatusCounts };
   }, [boards, allTasks]);
 
   if (isLoading) {
@@ -234,14 +241,17 @@ export function WorkspaceDashboard({ boards, allTasks, isLoading }: Props) {
             </div>
             <div className="flex flex-col gap-3 pr-4">
               {[
-                { label: "Pendiente",   cls: "bg-slate-300 ring-slate-400/60" },
-                { label: "En Progreso", cls: "bg-yellow-200 ring-yellow-500/60" },
-                { label: "Retrasado",   cls: "bg-red-200 ring-red-500/60" },
-                { label: "Completado",  cls: "bg-green-200 ring-green-500/60" },
-              ].map(({ label, cls }) => (
+                { label: "Pendiente",   cls: "bg-slate-300 ring-slate-400/60",   count: stats.perStatusCounts.pending },
+                { label: "En Progreso", cls: "bg-yellow-200 ring-yellow-500/60", count: stats.perStatusCounts.in_progress },
+                { label: "Retrasado",   cls: "bg-red-200 ring-red-500/60",       count: stats.perStatusCounts.delayed },
+                { label: "Completado",  cls: "bg-green-200 ring-green-500/60",   count: stats.perStatusCounts.completed },
+              ].map(({ label, cls, count }) => (
                 <span key={label} className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                   <span className={`h-3 w-3 rounded-full flex-shrink-0 ring-1 ${cls}`} />
                   {label}
+                  <span className="ml-auto text-[10px] font-bold tabular-nums bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100 px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {count}
+                  </span>
                 </span>
               ))}
             </div>

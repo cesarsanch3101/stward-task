@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useLogin, useRegister } from "@/lib/hooks/use-auth";
+import dynamic from "next/dynamic";
+
+const GoogleAuthButton = dynamic(
+  () => import("@/components/auth/google-auth-button").then((m) => m.GoogleAuthButton),
+  { ssr: false, loading: () => <div className="h-10 w-[368px] rounded bg-muted animate-pulse" /> }
+);
+import { useLogin, useRegister, useGoogleAuth } from "@/lib/hooks/use-auth";
 import {
   loginSchema,
   registerSchema,
@@ -21,6 +27,7 @@ export default function LoginPage() {
 
   const loginMutation = useLogin();
   const registerMutation = useRegister();
+  const googleAuthMutation = useGoogleAuth();
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -144,6 +151,23 @@ export default function LoginPage() {
                   : "Iniciar sesión"}
             </Button>
           </form>
+
+          {/* Separador */}
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs text-muted-foreground">
+              <span className="bg-card px-2">o continúa con</span>
+            </div>
+          </div>
+
+          {/* Botón Google */}
+          <div className="flex justify-center">
+            <GoogleAuthButton
+              onSuccess={(credential) => googleAuthMutation.mutate(credential)}
+            />
+          </div>
 
           <div className="mt-4 text-center">
             <button

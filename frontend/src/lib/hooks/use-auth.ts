@@ -68,6 +68,30 @@ export function useRegister() {
   });
 }
 
+export function useGoogleAuth() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (idToken: string) => api.googleAuth(idToken),
+    onSuccess: (tokens) => {
+      setTokens(tokens);
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+      router.push("/");
+    },
+    onError: (err: Error) => {
+      let message = "Error al iniciar sesión con Google";
+      try {
+        const parsed = JSON.parse(err.message.replace(/^API \d+: /, ""));
+        message = parsed.detail || message;
+      } catch {
+        if (err.message.includes("403")) message = "Sin acceso. Contacta al administrador.";
+      }
+      toast.error(message);
+    },
+  });
+}
+
 export function useLogout() {
   const router = useRouter();
   const queryClient = useQueryClient();

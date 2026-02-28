@@ -73,6 +73,8 @@
 | Sprint 6 | Progreso Automático por Subtareas (SubtaskSchema, recalculate_parent_progress) | ✅ COMPLETADO |
 | Sprint 7 | Dashboard & Gantt Consolidado por Workspace + Edición de Subtareas | ✅ COMPLETADO |
 | Sprint 8 | Completud & Calidad (delete/reorder subtareas, seguridad, Lighthouse, exportar CSV/PDF) | ✅ COMPLETADO |
+| Sprint 9 | UX Dashboard (badges conteo por estado en leyenda) + Deploy Synology NAS | ✅ COMPLETADO |
+| Sprint 10 | Google OAuth2 SSO + Allowlist con Roles Pre-asignados | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -100,6 +102,9 @@
 - **Exportar datos (Sprint 8):** Botones "Exportar CSV" y "Exportar PDF" en Dashboard del tablero y Dashboard del workspace. CSV con BOM UTF-8 (compatible Excel). PDF vía `window.print()` con `@media print` CSS que oculta sidebar y botones. Util: `frontend/src/lib/export-utils.ts`.
 - **Seguridad (Sprint 8):** `npm audit fix` aplicó 3 fixes (ajv, minimatch, rollup). 4 HIGH restantes son falsos positivos: `glob/eslint-config-next` (dev-only) y `next` × 2 (no aplican: sin `remotePatterns`, sin RSC inseguro). Backend Python: sin vulnerabilidades conocidas (stack reciente).
 - **Performance (Sprint 8):** `next.config.mjs` añade `compress: true` y `experimental.optimizePackageImports`. `globals.css` incluye `@media print` styles. `layout.tsx` ya tenía `lang="es"`, skip link y meta description.
+- **Badges conteo en leyenda (Sprint 9):** Leyenda del gráfico de torta (Dashboard tablero y workspace) muestra pill con número de tareas por estado. Dark-mode aware: `bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100`. `statusCounts` calculado en `useMemo` de `dashboard-view.tsx`; `perStatusCounts` extraído de `statusCounts` en `workspace-dashboard.tsx`.
+- **Deploy Synology NAS (Sprint 9):** `frontend/Dockerfile.prod` multi-stage (`deps → builder → runner`) con `output: "standalone"`. `docker-compose.synology.yml` autocontenido (6 servicios, no overlay). `.env.example` sección Synology comentada. `NEXT_PUBLIC_API_URL` se pasa como Docker `ARG` (se bake en bundle cliente en build time).
+- **Google OAuth2 SSO + Allowlist (Sprint 10):** Login con Google via `@react-oauth/google`. Backend valida `id_token` con `google-auth` library. `AllowedEmail` model controla quién puede acceder y con qué rol (email específico o dominio completo). Panel `/admin/users` exclusivo para administradores para gestionar la allowlist (agregar email/dominio, asignar rol, importar CSV, eliminar). Link "Control de Acceso" en sidebar visible solo para administradores. Login email+contraseña se mantiene como respaldo.
 - **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt, Dashboard Workspace, Gantt Workspace
 - **CI/CD:** GitHub Actions (7 jobs: lint → test → build → E2E → SBOM → security scan)
 - **Tests:** 56 backend (pytest, 88% cov) + 18 frontend (Vitest + RTL) + Playwright E2E
@@ -128,8 +133,16 @@
 - **deleteSubtask recalculate**: `TaskService.delete()` guarda `parent_id = task.parent_id` antes del soft_delete, luego llama `recalculate_parent_progress(task)` fuera del `transaction.atomic()`. La tarea ya está soft-deleted, así que `deleted_at__isnull=True` la excluye del cálculo.
 - **npm audit HIGH falsos positivos**: `glob` vía `eslint-config-next` es dev-only. `next` × 2 requieren configuraciones (remotePatterns, RSC inseguro) que no usamos. 14.2.35 es el último patch de 14.x. Upgrade a 15.x es breaking.
 - **exportTasksCSV**: BOM `\uFEFF` + `\r\n` separador. Columnas: Título, Estado, Prioridad, Asignado, Inicio, Fin, Progreso. En `frontend/src/lib/export-utils.ts`.
+- **Badges conteo leyenda dark mode**: usar `bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100` — evitar `bg-slate-100 text-foreground` que en dark mode queda texto claro sobre fondo claro.
+- **docker-compose.synology.yml**: autocontenido (NO overlay), usar `-f docker-compose.synology.yml` explícito. `NEXT_PUBLIC_API_URL` es build arg → debe estar en `.env` antes del `--build`.
 - **Demo user:** admin@stwards.com / admin123
 - **DB volume:** Si cambias credenciales en `.env`, ejecutar `docker compose down -v` para recrear el volumen
+- **Google OAuth2**: `GOOGLE_CLIENT_ID` debe estar en `.env` (backend) Y como `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (frontend). Sin valor, `verify_google_token()` retorna `None` silenciosamente.
+- **AllowedEmail lookup**: email específico tiene prioridad sobre dominio. Un usuario `a@stwards.com` matchea primero por email exacto, luego por `domain=stwards.com`.
+- **google-auth en Docker**: después de añadir a `requirements.txt`, hay que reconstruir la imagen con `docker compose up --build -d`.
+- **`locale` prop de GoogleLogin**: NO es un prop válido en `@react-oauth/google`. El idioma del botón lo controla Google automáticamente según el navegador.
+- **Primer login Google**: si el usuario NO existe → se crea con datos de Google + rol del `AllowedEmail` + workspace default. Si ya existe → solo actualiza `google_id` y `avatar_url`.
+- **`used_at` en AllowedEmail**: se marca la primera vez que el email/dominio se usa para registrar un usuario. Entradas con `used_at = null` → "Pendiente" en la UI.
 
 ### Regla de documentación (OBLIGATORIA)
 > Cada vez que se agregue una funcionalidad nueva, se deben actualizar:
@@ -143,8 +156,9 @@
 - `backend/config/settings/development.py` - Dev overrides
 - `backend/config/settings/production.py` - Prod security settings
 - `backend/config/celery.py` - Celery app configuration
-- `backend/apps/accounts/auth.py` - JWT token creation/validation
-- `backend/apps/accounts/api.py` - Auth endpoints (login, register, refresh)
+- `backend/apps/accounts/auth.py` - JWT token creation/validation + `verify_google_token()`
+- `backend/apps/accounts/api.py` - Auth endpoints (login, register, refresh, google, allowed-emails CRUD)
+- `backend/apps/accounts/models.py` - User (google_id, avatar_url) + AllowedEmail model
 - `backend/apps/projects/models.py` - Workspace, Board, Column, Task, TaskAssignment, TaskComment, Notification
 - `backend/apps/projects/services.py` - Business logic (Service Layer) incl. role-based visibility
 - `backend/apps/projects/api.py` - REST endpoints (thin controllers) incl. GET /users
@@ -160,3 +174,7 @@
 - `frontend/src/components/workspace/workspace-dashboard.tsx` - Dashboard multi-board
 - `frontend/src/components/workspace/workspace-gantt.tsx` - Gantt multi-board (grupos = tableros)
 - `frontend/src/lib/export-utils.ts` - Util `exportTasksCSV()` con BOM UTF-8
+- `frontend/Dockerfile.prod` - Build multi-stage standalone para producción (Synology / self-hosted)
+- `docker-compose.synology.yml` - Compose autocontenido para Synology NAS (6 servicios)
+- `frontend/src/app/admin/users/page.tsx` - Panel de gestión de allowlist (solo administradores)
+- `frontend/src/lib/providers.tsx` - GoogleOAuthProvider + ThemeProvider + QueryClientProvider wrappers

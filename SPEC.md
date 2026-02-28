@@ -2,7 +2,7 @@
 ## Stward Task — Kanban Board Application
 **Fecha:** 2026-02-17
 **Autor:** AG-ARCHITECT (Mesa Agéntica SASE)
-**Estado:** SPRINT 8 COMPLETADO — Todos los sprints cerrados
+**Estado:** SPRINT 10 COMPLETADO — Google OAuth2 + Allowlist con Roles
 
 ---
 
@@ -385,6 +385,64 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 **Vulnerabilidades aceptadas (no corregibles sin breaking changes):**
 - `glob/eslint-config-next` HIGH → dev-only, no llega a producción
 - `next` × 2 HIGH → no aplican: sin `remotePatterns`, sin RSC inseguro. Fix requiere Next.js 16 (breaking).
+
+---
+
+### SPRINT 9 — UX Dashboard + Deploy Synology ✅ COMPLETADO
+
+**Objetivo:** Mejorar legibilidad del dashboard con badges de conteo por estado, y añadir soporte de despliegue self-hosted en Synology NAS.
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| `statusCounts` en `useMemo` de `dashboard-view.tsx` (pending/in_progress/delayed/completed) | MEDIUM | ✅ `dashboard-view.tsx` |
+| Badges pill en leyenda del gráfico de torta (Dashboard tablero) — dark-mode aware | MEDIUM | ✅ `dashboard-view.tsx` |
+| `perStatusCounts` extraído de `statusCounts` en `workspace-dashboard.tsx` | MEDIUM | ✅ `workspace-dashboard.tsx` |
+| Badges pill en leyenda del gráfico de torta (Dashboard workspace) — dark-mode aware | MEDIUM | ✅ `workspace-dashboard.tsx` |
+| `frontend/Dockerfile.prod` multi-stage: `deps → builder (ARG NEXT_PUBLIC_API_URL) → runner` | HIGH | ✅ `frontend/Dockerfile.prod` |
+| `next.config.mjs` añade `output: "standalone"` para soporte de imagen standalone | HIGH | ✅ `next.config.mjs` |
+| `docker-compose.synology.yml` autocontenido (6 servicios, gunicorn, healthchecks) | HIGH | ✅ `docker-compose.synology.yml` |
+| `.env.example` sección "Synology NAS / Self-hosted deploy" con variables comentadas | MEDIUM | ✅ `.env.example` |
+
+**Notas técnicas:**
+- Badges: `bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100` — evita problema de contraste en dark mode
+- `NEXT_PUBLIC_API_URL` se bake en el bundle cliente en build time → pasar como Docker `ARG`, no como env runtime
+- `docker-compose.synology.yml` NO es overlay: es un compose completo independiente de `docker-compose.yml`
+
+---
+
+### SPRINT 10 — Google OAuth2 + Allowlist con Roles Pre-asignados ✅ COMPLETADO
+
+**Objetivo:** Integrar autenticación SSO con Google (Google Workspace), controlada por una lista de acceso con roles pre-asignados. El login email+contraseña se mantiene como respaldo.
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| `backend/requirements.txt`: añadir `google-auth==2.36.0` | HIGH | ✅ |
+| `User` model: campos `google_id` + `avatar_url` | HIGH | ✅ `accounts/models.py` |
+| Modelo `AllowedEmail`: email/dominio + rol + invited_by + used_at | HIGH | ✅ `accounts/models.py` |
+| Migración `0004_user_avatar_url_user_google_id_allowedemail` | HIGH | ✅ |
+| `schemas.py`: `GoogleAuthSchema`, `AllowedEmailSchema`, `AllowedEmailCreateSchema`, update `UserSchema` | HIGH | ✅ `accounts/schemas.py` |
+| `auth.py`: `verify_google_token()` con `google.oauth2.id_token` | HIGH | ✅ `accounts/auth.py` |
+| `api.py`: `POST /auth/google` — valida token → allowlist → crea/actualiza user → JWT pair | HIGH | ✅ `accounts/api.py` |
+| `api.py`: CRUD `/allowed-emails` (GET, POST, DELETE, POST /bulk) — solo administrador | HIGH | ✅ `accounts/api.py` |
+| `settings/base.py`: `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | MEDIUM | ✅ |
+| `.env.example`: sección Google OAuth2 con variables comentadas | MEDIUM | ✅ |
+| Frontend: instalar `@react-oauth/google` | HIGH | ✅ |
+| `providers.tsx`: `GoogleOAuthProvider` wrapper | HIGH | ✅ `lib/providers.tsx` |
+| `types.ts`: `UserRole` type, actualizar `User` con role+avatar_url, añadir `AllowedEmail` | HIGH | ✅ `lib/types.ts` |
+| `api.ts`: `googleAuth()`, `getAllowedEmails()`, `createAllowedEmail()`, `deleteAllowedEmail()`, `bulkCreateAllowedEmails()` | HIGH | ✅ `lib/api.ts` |
+| `use-auth.ts`: `useGoogleAuth()` mutation | HIGH | ✅ `lib/hooks/use-auth.ts` |
+| Login page: botón "Continuar con Google" con separador | HIGH | ✅ `app/login/page.tsx` |
+| Panel `/admin/users`: CRUD allowlist para administradores | HIGH | ✅ `app/admin/users/page.tsx` |
+| Sidebar: link "Control de Acceso" visible solo para administradores | MEDIUM | ✅ `components/sidebar/app-sidebar.tsx` |
+
+**Notas técnicas:**
+- Flujo: Frontend recibe `id_token` de Google → POST `/auth/google` → backend valida con `google-auth` library → busca en `AllowedEmail` (email exacto primero, luego dominio) → crea/actualiza `User` → retorna JWT pair
+- Primer login Google: crea workspace default "Mi Primer Espacio" (misma lógica que registro email)
+- Si usuario ya existía (registro por email/contraseña), actualiza `google_id` y `avatar_url`
+- `AllowedEmail` soporta email específico O dominio completo (ej: `stwards.com` da acceso a todos los `@stwards.com`)
+- Rol se toma del `AllowedEmail` al crear el usuario; no se cambia en logins posteriores
+- `_require_admin(user)` helper centraliza la verificación de rol administrador en todos los endpoints
+- `used_at` se marca la primera vez que el email/dominio es usado para registrarse
 
 ---
 

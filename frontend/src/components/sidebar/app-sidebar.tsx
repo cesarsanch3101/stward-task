@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Shield } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CreateWorkspaceDialog } from "./create-workspace-dialog";
 import { WorkspaceMenu } from "./workspace-menu";
@@ -9,10 +10,12 @@ import { BoardMenu } from "./board-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import { SidebarSkeleton } from "./sidebar-skeleton";
 
 export function AppSidebar() {
   const { data, isLoading } = useWorkspaces();
+  const { data: currentUser } = useCurrentUser();
   const pathname = usePathname();
   const workspaces = data?.items;
 
@@ -91,7 +94,20 @@ export function AppSidebar() {
         </div>
       </ScrollArea>
 
-      <div className="border-t p-3">
+      <div className="border-t p-3 space-y-2">
+        {currentUser?.role === "administrador" && (
+          <Link
+            href="/admin/users"
+            className={`flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors ${
+              pathname === "/admin/users"
+                ? "bg-white/20 text-white"
+                : "text-white/70 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <Shield className="h-3.5 w-3.5" />
+            Control de Acceso
+          </Link>
+        )}
         <CreateWorkspaceDialog />
       </div>
     </aside>
