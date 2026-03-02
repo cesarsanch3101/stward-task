@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarSkeleton } from "@/components/sidebar/sidebar-skeleton";
 
 export default function Home() {
   const router = useRouter();
-  const { data, isLoading, isError } = useWorkspaces();
+  const { data, isError } = useWorkspaces();
   const workspaces = data?.items;
 
   useEffect(() => {
@@ -33,19 +32,10 @@ export default function Home() {
     if (isError) router.push("/login");
   }, [isError, router]);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen overflow-hidden">
-        <SidebarSkeleton />
-        <main className="flex-1 overflow-auto">
-          <div className="flex items-center justify-center h-full bg-background">
-            <p className="text-muted-foreground">Cargando...</p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
+  // Always render the same structure regardless of loading/auth state to avoid
+  // React hydration mismatches between the static export HTML (generated without
+  // auth) and the client-side render (which may have auth tokens in localStorage).
+  // AppSidebar handles its own loading skeleton internally.
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />

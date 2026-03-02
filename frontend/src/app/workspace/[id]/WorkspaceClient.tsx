@@ -24,7 +24,11 @@ export default function WorkspaceClient() {
   const { workspace, boards, allTasks, isLoading, isFetching } = useWorkspaceDetail(id);
   const { workspaceView, setWorkspaceView } = useUIStore();
 
-  if (isLoading) {
+  // Show skeleton when loading OR workspace not yet resolved.
+  // This ensures the static export HTML (isLoading=false && !workspace at build time)
+  // matches the client hydration (isLoading=true for authenticated users), avoiding
+  // React hydration error #418.
+  if (isLoading || !workspace) {
     return (
       <div className="flex h-screen overflow-hidden">
         <SidebarSkeleton />
@@ -37,17 +41,6 @@ export default function WorkspaceClient() {
               {[1,2,3,4].map((i) => <div key={i} className="h-28 bg-muted rounded-lg animate-pulse" />)}
             </div>
           </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (!workspace) {
-    return (
-      <div className="flex h-screen overflow-hidden">
-        <AppSidebar />
-        <main className="flex-1 flex items-center justify-center">
-          <p className="text-muted-foreground text-sm">Workspace no encontrado.</p>
         </main>
       </div>
     );
