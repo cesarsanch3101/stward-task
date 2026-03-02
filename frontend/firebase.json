@@ -9,14 +9,6 @@
     "cleanUrls": true,
     "rewrites": [
       {
-        "source": "/board/**",
-        "destination": "/board/board/index.html"
-      },
-      {
-        "source": "/workspace/**",
-        "destination": "/workspace/dashboard/index.html"
-      },
-      {
         "source": "**",
         "destination": "/index.html"
       }
