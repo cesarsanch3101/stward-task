@@ -446,7 +446,7 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-### SPRINT 11 — Deploy en Producción (Google Cloud) 🚧 EN PROGRESO
+### SPRINT 11 — Deploy en Producción (Google Cloud) ✅ COMPLETADO
 
 **Objetivo:** App accesible públicamente vía Firebase + Cloud Run + Neon PostgreSQL
 
@@ -467,9 +467,9 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 | Fix loop infinito en frontend (pathname check + `enabled: isAuthenticated()`) | HIGH | ✅ |
 | Google OAuth Client ID bakeado en build | HIGH | ✅ |
 | Logout button en sidebar | MEDIUM | ✅ |
-| Depurar error de login en producción | HIGH | ❌ pendiente |
-| Crear superusuario `admin@stwards.com` en Neon | HIGH | ❌ pendiente |
-| Verificar Google OAuth en producción | HIGH | ❌ pendiente |
+| Depurar error de login en producción | HIGH | ✅ |
+| Crear superusuario `admin@stwards.com` en Neon | HIGH | ✅ (ya existía) |
+| Verificar Google OAuth en producción | HIGH | ✅ |
 | Celery/Beat workers en Cloud Run | MEDIUM | ❌ pendiente |
 
 **Notas técnicas:**
@@ -477,6 +477,10 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 - `ALLOWED_HOSTS` debe incluir el dominio de Cloud Run
 - `NEXT_PUBLIC_*` se bake en build time → rebuild si cambian
 - `gcloud` no está en PATH de VS Code → usar Google Cloud SDK Shell
+- `base.py` lee `DB_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` individualmente — Cloud Run necesita estas vars, NO solo `DATABASE_URL`
+- `config/celery.py` tiene `setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")` → agregar `DJANGO_SETTINGS_MODULE=config.settings` explícitamente en Cloud Run
+- `ALLOWED_HOSTS` se puede corromper con artefactos de Windows CMD si se configura desde cmd.exe — siempre verificar con `gcloud run services describe`
+- Firebase CLI necesita `npm install -g firebase-tools` y reiniciar terminal, o usar ruta completa `C:\Users\...\AppData\Roaming\npm\firebase.cmd`
 
 ---
 

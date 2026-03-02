@@ -50,8 +50,14 @@
 | Variable | Valor |
 |----------|-------|
 | `DJANGO_ENV` | `production` |
+| `DJANGO_SETTINGS_MODULE` | `config.settings` |
 | `SECRET_KEY` | (ver MEMORY.md) |
 | `DATABASE_URL` | (ver MEMORY.md) |
+| `DB_HOST` | `ep-quiet-mountain-ai8frdzt-pooler.c-4.us-east-1.aws.neon.tech` |
+| `DB_PORT` | `5432` |
+| `POSTGRES_DB` | `neondb` |
+| `POSTGRES_USER` | `neondb_owner` |
+| `POSTGRES_PASSWORD` | (ver MEMORY.md) |
 | `CORS_ALLOWED_ORIGINS` | `https://stward-task-1cbf3.web.app` |
 | `GOOGLE_CLIENT_ID` | `997565014222-n7sv0q8tlo30kslbq5fkbgbu0egtaskr.apps.googleusercontent.com` |
 | `ALLOWED_HOSTS` | `stward-backend-997565014222.us-central1.run.app` |
@@ -76,13 +82,11 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 
 ### Estado del deploy (2026-03-02)
 - ✅ Frontend en Firebase, ✅ Backend en Cloud Run, ✅ Neon DB conectada
-- ❌ Login falla — pendiente depuración (posible: usuario admin no existe en Neon)
+- ✅ Login funcionando — admin@stwards.com / admin123
+- ✅ Sprint 10 (Google OAuth + Allowlist) desplegado en producción
 
 ### Pendientes
-1. Depurar error de login (ver logs del backend)
-2. Verificar/crear superusuario en Neon (`admin@stwards.com`)
-3. Configurar Celery/Beat en Cloud Run
-4. Verificar Google OAuth
+1. Configurar Celery/Beat en Cloud Run
 
 ## Email Configuration (pendiente de completar)
 - **Proveedor:** Google Workspace (dominio propio registrado en Google)
@@ -190,6 +194,10 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 - **`locale` prop de GoogleLogin**: NO es un prop válido en `@react-oauth/google`. El idioma del botón lo controla Google automáticamente según el navegador.
 - **Primer login Google**: si el usuario NO existe → se crea con datos de Google + rol del `AllowedEmail` + workspace default. Si ya existe → solo actualiza `google_id` y `avatar_url`.
 - **`used_at` en AllowedEmail**: se marca la primera vez que el email/dominio se usa para registrar un usuario. Entradas con `used_at = null` → "Pendiente" en la UI.
+- **Cloud Run DB vars**: `base.py` lee `DB_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_PORT` individualmente — NO lee `DATABASE_URL`. Cloud Run debe tener AMBOS sets de vars.
+- **Cloud Run DJANGO_SETTINGS_MODULE**: `config/celery.py` tiene `setdefault(..., "config.settings.development")`. Agregar `DJANGO_SETTINGS_MODULE=config.settings` explícitamente en Cloud Run para evitar que cargue settings de desarrollo.
+- **ALLOWED_HOSTS corrupción**: configurar desde cmd.exe Windows puede inyectar artefactos (`& goto lastline 2>NUL || C:\WINDOWS\...`). Siempre verificar con `gcloud run services describe` y corregir con `--update-env-vars`.
+- **Firebase CLI en PowerShell**: después de `npm install -g firebase-tools`, reiniciar terminal o usar ruta completa `C:\Users\...\AppData\Roaming\npm\firebase.cmd`.
 
 ### Regla de documentación (OBLIGATORIA)
 > Cada vez que se agregue una funcionalidad nueva, se deben actualizar:
