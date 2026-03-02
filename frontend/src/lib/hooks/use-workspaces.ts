@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
 import type { PaginatedResponse, Workspace } from "@/lib/types";
 
 export const workspaceKeys = {
@@ -23,6 +24,7 @@ export function useWorkspaces() {
   return useQuery({
     queryKey: workspaceKeys.all,
     queryFn: api.getWorkspaces,
+    enabled: typeof window !== "undefined" && isAuthenticated(),
   });
 }
 

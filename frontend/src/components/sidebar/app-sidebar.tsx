@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield } from "lucide-react";
+import { Shield, LogOut } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CreateWorkspaceDialog } from "./create-workspace-dialog";
 import { WorkspaceMenu } from "./workspace-menu";
@@ -10,12 +10,13 @@ import { BoardMenu } from "./board-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
-import { useCurrentUser } from "@/lib/hooks/use-auth";
+import { useCurrentUser, useLogout } from "@/lib/hooks/use-auth";
 import { SidebarSkeleton } from "./sidebar-skeleton";
 
 export function AppSidebar() {
   const { data, isLoading } = useWorkspaces();
   const { data: currentUser } = useCurrentUser();
+  const logout = useLogout();
   const pathname = usePathname();
   const workspaces = data?.items;
 
@@ -109,6 +110,14 @@ export function AppSidebar() {
           </Link>
         )}
         <CreateWorkspaceDialog />
+        <button
+          type="button"
+          onClick={logout}
+          className="flex items-center gap-2 px-3 py-2 text-sm rounded w-full text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Cerrar sesión
+        </button>
       </div>
     </aside>
   );

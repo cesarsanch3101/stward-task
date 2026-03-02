@@ -81,8 +81,8 @@ async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
       });
       if (retryRes.ok) return retryRes.json();
     }
-    // Redirect to login if refresh also fails
-    if (typeof window !== "undefined") {
+    // Redirect to login if refresh also fails (only if not already on login page)
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
       window.location.href = "/login";
     }
   }

@@ -1,5 +1,5 @@
 # Manual de Usuario — Stward Task
-**Versión:** 1.3 · **Idioma:** Español · **Fecha:** Febrero 2026
+**Versión:** 1.4 · **Idioma:** Español · **Fecha:** Marzo 2026
 
 ---
 
@@ -48,9 +48,16 @@
 
 ## 2. Acceso al sistema
 
+### 2.0 URL de la aplicación
+
+| Entorno | URL |
+|---------|-----|
+| **Producción** | https://stward-task-1cbf3.web.app |
+| **Local (desarrollo)** | http://localhost:3000 |
+
 ### 2.1 Iniciar sesión
 
-1. Abre el navegador y ve a `http://localhost:3000` (o la URL de tu instancia)
+1. Abre el navegador y ve a la URL de tu entorno (ver tabla 2.0)
 2. En la pantalla de inicio de sesión, ingresa:
    - **Correo electrónico**
    - **Contraseña** (mínimo 8 caracteres)

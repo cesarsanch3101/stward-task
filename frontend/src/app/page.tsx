@@ -29,10 +29,9 @@ export default function Home() {
     }
   }, [workspaces, router]);
 
-  if (isError) {
-    router.push("/login");
-    return null;
-  }
+  useEffect(() => {
+    if (isError) router.push("/login");
+  }, [isError, router]);
 
   if (isLoading) {
     return (

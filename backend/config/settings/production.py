@@ -23,6 +23,7 @@ CORS_ALLOWED_ORIGINS = [
 # Security headers
 # ──────────────────────────────────────────────
 SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # Cloud Run / reverse proxy
 SECURE_HSTS_SECONDS = 31_536_000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True

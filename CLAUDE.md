@@ -37,6 +37,53 @@
 - DB not exposed to host by default (internal Docker network only)
 - Containers run as non-root users
 
+## Deploy en Producción (Google Cloud)
+
+### URLs activas
+- **Frontend:** https://stward-task-1cbf3.web.app (Firebase Hosting — static export)
+- **Backend:** https://stward-backend-997565014222.us-central1.run.app (Cloud Run)
+- **DB:** Neon PostgreSQL — `ep-quiet-mountain-ai8frdzt-pooler.c-4.us-east-1.aws.neon.tech`
+- **GCP Project:** `stward-task-1cbf3`
+- **Image:** `gcr.io/stward-task-1cbf3/stward-backend:latest`
+
+### Env vars Cloud Run (actuales)
+| Variable | Valor |
+|----------|-------|
+| `DJANGO_ENV` | `production` |
+| `SECRET_KEY` | (ver MEMORY.md) |
+| `DATABASE_URL` | (ver MEMORY.md) |
+| `CORS_ALLOWED_ORIGINS` | `https://stward-task-1cbf3.web.app` |
+| `GOOGLE_CLIENT_ID` | `997565014222-n7sv0q8tlo30kslbq5fkbgbu0egtaskr.apps.googleusercontent.com` |
+| `ALLOWED_HOSTS` | `stward-backend-997565014222.us-central1.run.app` |
+
+### Comandos clave de deploy
+```bash
+# Rebuild + push backend
+cd backend
+docker build -t gcr.io/stward-task-1cbf3/stward-backend:latest .
+docker push gcr.io/stward-task-1cbf3/stward-backend:latest
+gcloud run deploy stward-backend --image gcr.io/stward-task-1cbf3/stward-backend:latest --region us-central1 --project stward-task-1cbf3
+
+# Rebuild + deploy frontend (desde frontend/)
+Remove-Item -Recurse -Force out; npm run build; firebase deploy --only hosting
+
+# Actualizar env var (NUNCA usar --set-env-vars, borra todo)
+gcloud run services update stward-backend --region us-central1 --project stward-task-1cbf3 --update-env-vars "KEY=VALUE"
+
+# Ver logs
+gcloud run services logs read stward-backend --region us-central1 --project stward-task-1cbf3 --limit 50
+```
+
+### Estado del deploy (2026-03-02)
+- ✅ Frontend en Firebase, ✅ Backend en Cloud Run, ✅ Neon DB conectada
+- ❌ Login falla — pendiente depuración (posible: usuario admin no existe en Neon)
+
+### Pendientes
+1. Depurar error de login (ver logs del backend)
+2. Verificar/crear superusuario en Neon (`admin@stwards.com`)
+3. Configurar Celery/Beat en Cloud Run
+4. Verificar Google OAuth
+
 ## Email Configuration (pendiente de completar)
 - **Proveedor:** Google Workspace (dominio propio registrado en Google)
 - **Envío (SMTP):** `smtp.gmail.com:587` con App Password de 16 chars

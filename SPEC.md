@@ -446,6 +446,40 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
+### SPRINT 11 — Deploy en Producción (Google Cloud) 🚧 EN PROGRESO
+
+**Objetivo:** App accesible públicamente vía Firebase + Cloud Run + Neon PostgreSQL
+
+**URLs producción:**
+- Frontend: https://stward-task-1cbf3.web.app
+- Backend: https://stward-backend-997565014222.us-central1.run.app
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| Next.js `output: "export"` para Firebase Hosting (static) | HIGH | ✅ |
+| `generateStaticParams()` en rutas dinámicas | HIGH | ✅ |
+| Firebase Hosting deploy + SPA rewrite | HIGH | ✅ |
+| Docker build + push a GCR | HIGH | ✅ |
+| Cloud Run deploy del backend | HIGH | ✅ |
+| Neon PostgreSQL conectado + migraciones | HIGH | ✅ |
+| `SECURE_PROXY_SSL_HEADER` en `production.py` | HIGH | ✅ |
+| Env vars en Cloud Run (DJANGO_ENV, SECRET_KEY, DATABASE_URL, CORS, GOOGLE_CLIENT_ID, ALLOWED_HOSTS) | HIGH | ✅ |
+| Fix loop infinito en frontend (pathname check + `enabled: isAuthenticated()`) | HIGH | ✅ |
+| Google OAuth Client ID bakeado en build | HIGH | ✅ |
+| Logout button en sidebar | MEDIUM | ✅ |
+| Depurar error de login en producción | HIGH | ❌ pendiente |
+| Crear superusuario `admin@stwards.com` en Neon | HIGH | ❌ pendiente |
+| Verificar Google OAuth en producción | HIGH | ❌ pendiente |
+| Celery/Beat workers en Cloud Run | MEDIUM | ❌ pendiente |
+
+**Notas técnicas:**
+- `--set-env-vars` REEMPLAZA todo → siempre usar `--update-env-vars`
+- `ALLOWED_HOSTS` debe incluir el dominio de Cloud Run
+- `NEXT_PUBLIC_*` se bake en build time → rebuild si cambian
+- `gcloud` no está en PATH de VS Code → usar Google Cloud SDK Shell
+
+---
+
 ## 5. DECISIONES ARQUITECTÓNICAS PENDIENTES (ADRs)
 
 ### ADR-001: Estrategia de Autenticación ✅ RESUELTO
