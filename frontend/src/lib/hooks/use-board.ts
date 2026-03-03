@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
 import { workspaceKeys } from "./use-workspaces";
 import type { BoardSummary, PaginatedResponse, Workspace } from "@/lib/types";
 
@@ -15,7 +16,7 @@ export function useBoard(id: string) {
   return useQuery({
     queryKey: boardKeys.detail(id),
     queryFn: () => api.getBoard(id),
-    enabled: !!id,
+    enabled: !!id && (typeof window === "undefined" || isAuthenticated()),
   });
 }
 

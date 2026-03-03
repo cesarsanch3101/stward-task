@@ -91,7 +91,7 @@ describe("TaskCard", () => {
     expect(screen.getByText(/ene/i)).toBeInTheDocument();
   });
 
-  it("shows 'Vencida' badge for overdue tasks", () => {
+  it("shows overdue banner for overdue tasks", () => {
     render(
       <TaskCard
         task={{
@@ -102,10 +102,10 @@ describe("TaskCard", () => {
         boardId="board-1"
       />
     );
-    expect(screen.getByText("Vencida")).toBeInTheDocument();
+    expect(screen.getByText(/ATRASADA/i)).toBeInTheDocument();
   });
 
-  it("does not show 'Vencida' for completed tasks", () => {
+  it("does not show overdue banner for completed tasks", () => {
     render(
       <TaskCard
         task={{
@@ -116,6 +116,6 @@ describe("TaskCard", () => {
         boardId="board-1"
       />
     );
-    expect(screen.queryByText("Vencida")).not.toBeInTheDocument();
+    expect(screen.queryByText(/ATRASADA/i)).not.toBeInTheDocument();
   });
 });

@@ -9,7 +9,6 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { WorkspaceDashboard } from "@/components/workspace/workspace-dashboard";
 import { WorkspaceGantt } from "@/components/workspace/workspace-gantt";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { SidebarSkeleton } from "@/components/sidebar/sidebar-skeleton";
 import { Button } from "@/components/ui/button";
 import { PieChart, GanttChart, RefreshCw } from "lucide-react";
 
@@ -24,28 +23,8 @@ export default function WorkspaceClient() {
   const { workspace, boards, allTasks, isLoading, isFetching } = useWorkspaceDetail(id);
   const { workspaceView, setWorkspaceView } = useUIStore();
 
-  // Show skeleton when loading OR workspace not yet resolved.
-  // This ensures the static export HTML (isLoading=false && !workspace at build time)
-  // matches the client hydration (isLoading=true for authenticated users), avoiding
-  // React hydration error #418.
-  if (isLoading || !workspace) {
-    return (
-      <div className="flex h-screen overflow-hidden">
-        <SidebarSkeleton />
-        <main className="flex-1 overflow-auto">
-          <div className="h-full bg-background flex flex-col">
-            <header className="border-b bg-card px-6 py-4 shrink-0">
-              <div className="h-7 w-56 bg-muted rounded animate-pulse" />
-            </header>
-            <div className="flex-1 p-6 grid grid-cols-4 gap-4">
-              {[1,2,3,4].map((i) => <div key={i} className="h-28 bg-muted rounded-lg animate-pulse" />)}
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
+  // AppSidebar always renders — it handles its own skeleton while workspaces load.
+  // Only the main content shows skeleton while workspace data loads.
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
@@ -53,10 +32,16 @@ export default function WorkspaceClient() {
         <div className="h-full bg-background flex flex-col">
           <header className="border-b bg-card px-6 py-4 flex items-center gap-4 shrink-0">
             <div className="min-w-0">
-              <h1 className="text-lg font-bold text-foreground truncate">{workspace.name}</h1>
-              <p className="text-xs text-muted-foreground">
-                {boards.length} tablero{boards.length !== 1 ? "s" : ""} · {allTasks.length} tarea{allTasks.length !== 1 ? "s" : ""}
-              </p>
+              {workspace ? (
+                <>
+                  <h1 className="text-lg font-bold text-foreground truncate">{workspace.name}</h1>
+                  <p className="text-xs text-muted-foreground">
+                    {boards.length} tablero{boards.length !== 1 ? "s" : ""} · {allTasks.length} tarea{allTasks.length !== 1 ? "s" : ""}
+                  </p>
+                </>
+              ) : (
+                <div className="h-7 w-56 bg-muted rounded animate-pulse" />
+              )}
             </div>
 
             <div className="ml-auto flex items-center gap-3">

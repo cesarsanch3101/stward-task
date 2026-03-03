@@ -8,7 +8,7 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 
 export default function Home() {
   const router = useRouter();
-  const { data, isError } = useWorkspaces();
+  const { data } = useWorkspaces();
   const workspaces = data?.items;
 
   useEffect(() => {
@@ -27,10 +27,6 @@ export default function Home() {
       }
     }
   }, [workspaces, router]);
-
-  useEffect(() => {
-    if (isError) router.push("/login");
-  }, [isError, router]);
 
   // Always render the same structure regardless of loading/auth state to avoid
   // React hydration mismatches between the static export HTML (generated without

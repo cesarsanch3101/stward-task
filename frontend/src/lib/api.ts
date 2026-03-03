@@ -30,28 +30,43 @@ function authHeaders(): HeadersInit {
   return {};
 }
 
+// Singleton refresh promise — prevents race condition when multiple requests
+// fail with 401 simultaneously and each would independently try to refresh.
+let _refreshPromise: Promise<boolean> | null = null;
+
 async function handleTokenRefresh(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
+  // If a refresh is already in-flight, wait for the same promise
+  if (_refreshPromise) return _refreshPromise;
 
-  try {
-    const res = await fetch(`${getApiBase()}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh: refreshToken }),
-    });
+  _refreshPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
 
-    if (!res.ok) {
+    try {
+      const res = await fetch(`${getApiBase()}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (!res.ok) {
+        clearTokens();
+        return false;
+      }
+
+      const tokens: TokenPair = await res.json();
+      setTokens(tokens);
+      return true;
+    } catch {
       clearTokens();
       return false;
     }
+  })();
 
-    const tokens: TokenPair = await res.json();
-    setTokens(tokens);
-    return true;
-  } catch {
-    clearTokens();
-    return false;
+  try {
+    return await _refreshPromise;
+  } finally {
+    _refreshPromise = null;
   }
 }
 
@@ -117,7 +132,9 @@ async function fetchNoContent(path: string, init?: RequestInit) {
       });
       if (retryRes.ok || retryRes.status === 204) return;
     }
-    window.location.href = "/login";
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
   }
 
   if (!res.ok && res.status !== 204) {

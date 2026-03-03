@@ -31,7 +31,13 @@ class RateLimitMiddleware:
 
         ip = self._get_client_ip(request)
 
-        is_auth = request.path.startswith("/api/v1/auth/")
+        # Strict limit only for endpoints that need brute-force protection
+        SENSITIVE_AUTH_PATHS = (
+            "/api/v1/auth/login",
+            "/api/v1/auth/register",
+            "/api/v1/auth/google",
+        )
+        is_auth = any(request.path.startswith(p) for p in SENSITIVE_AUTH_PATHS)
         if is_auth:
             max_requests = getattr(settings, "RATE_LIMIT_AUTH_REQUESTS", 10)
             window = getattr(settings, "RATE_LIMIT_AUTH_WINDOW", 60)

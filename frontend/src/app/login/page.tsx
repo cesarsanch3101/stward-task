@@ -95,6 +95,7 @@ export default function LoginPage() {
                     id="firstName"
                     {...registerForm.register("first_name")}
                     placeholder="Juan"
+                    autoComplete="given-name"
                   />
                 </div>
                 <div className="space-y-2">
@@ -103,6 +104,7 @@ export default function LoginPage() {
                     id="lastName"
                     {...registerForm.register("last_name")}
                     placeholder="Pérez"
+                    autoComplete="family-name"
                   />
                 </div>
               </div>
@@ -117,6 +119,7 @@ export default function LoginPage() {
                   ? registerForm.register("email")
                   : loginForm.register("email"))}
                 placeholder="correo@ejemplo.com"
+                autoComplete="email"
                 autoFocus
               />
               {activeErrors.email && (
@@ -135,6 +138,7 @@ export default function LoginPage() {
                   ? registerForm.register("password")
                   : loginForm.register("password"))}
                 placeholder="Mínimo 8 caracteres"
+                autoComplete={isRegister ? "new-password" : "current-password"}
               />
               {activeErrors.password && (
                 <p className="text-xs text-red-500">

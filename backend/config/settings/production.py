@@ -9,6 +9,11 @@ from .base import *  # noqa: F401, F403
 DEBUG = False
 
 # ──────────────────────────────────────────────
+# Rate limiting — disabled in prod (Cloud Run resets cache on each deploy anyway)
+# ──────────────────────────────────────────────
+RATE_LIMIT_ENABLED = False
+
+# ──────────────────────────────────────────────
 # CORS — strict in production
 # ──────────────────────────────────────────────
 CORS_ALLOW_ALL_ORIGINS = False

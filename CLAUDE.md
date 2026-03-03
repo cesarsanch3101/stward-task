@@ -84,6 +84,7 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 - ✅ Frontend en Firebase, ✅ Backend en Cloud Run, ✅ Neon DB conectada
 - ✅ Login funcionando — admin@stwards.com / admin123
 - ✅ Sprint 10 (Google OAuth + Allowlist) desplegado en producción
+- ✅ Fix React hydration errors #418/#423 — Firebase routing corregido para rutas dinámicas
 
 ### Pendientes
 1. Configurar Celery/Beat en Cloud Run
@@ -195,6 +196,9 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 - **Primer login Google**: si el usuario NO existe → se crea con datos de Google + rol del `AllowedEmail` + workspace default. Si ya existe → solo actualiza `google_id` y `avatar_url`.
 - **`used_at` en AllowedEmail**: se marca la primera vez que el email/dominio se usa para registrar un usuario. Entradas con `used_at = null` → "Pendiente" en la UI.
 - **Cloud Run DB vars**: `base.py` lee `DB_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_PORT` individualmente — NO lee `DATABASE_URL`. Cloud Run debe tener AMBOS sets de vars.
+- **React hydration #418/#423**: Con `output: "export"`, Next.js genera HTML estático sin auth. Al rehidratar con auth, `isLoading` difiere → mismatch. Fix: NO usar `if (isLoading) return skeleton` a nivel de page (ej. `page.tsx`). Siempre renderizar la misma estructura; AppSidebar maneja su propio skeleton internamente.
+- **Firebase routing para rutas dinámicas**: Con `"**" → /index.html`, Firebase servía la home page para `/board/uuid`, causando mismatch de hidratación. Fix: añadir rewrites específicos `/board/**` → `/board/board/index.html` y `/workspace/**` → `/workspace/dashboard/index.html` en `firebase.json`. Requiere `trailingSlash: true` en `next.config.mjs`.
+- **WorkspaceClient hydration**: Estaticamente genera con `isLoading=false && !workspace` → render "no encontrado". Client hydrata con `isLoading=true`. Fix: cambiar `if (isLoading)` a `if (isLoading || !workspace)` para que ambas condiciones usen el mismo skeleton.
 - **Cloud Run DJANGO_SETTINGS_MODULE**: `config/celery.py` tiene `setdefault(..., "config.settings.development")`. Agregar `DJANGO_SETTINGS_MODULE=config.settings` explícitamente en Cloud Run para evitar que cargue settings de desarrollo.
 - **ALLOWED_HOSTS corrupción**: configurar desde cmd.exe Windows puede inyectar artefactos (`& goto lastline 2>NUL || C:\WINDOWS\...`). Siempre verificar con `gcloud run services describe` y corregir con `--update-env-vars`.
 - **Firebase CLI en PowerShell**: después de `npm install -g firebase-tools`, reiniciar terminal o usar ruta completa `C:\Users\...\AppData\Roaming\npm\firebase.cmd`.

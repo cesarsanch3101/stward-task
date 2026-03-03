@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Shield, LogOut } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CreateWorkspaceDialog } from "./create-workspace-dialog";
@@ -12,20 +13,32 @@ import { NotificationBell } from "./notification-bell";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { useCurrentUser, useLogout } from "@/lib/hooks/use-auth";
 import { SidebarSkeleton } from "./sidebar-skeleton";
+import { isAuthenticated } from "@/lib/auth";
 
 export function AppSidebar() {
   const { data, isLoading } = useWorkspaces();
   const { data: currentUser } = useCurrentUser();
   const logout = useLogout();
   const pathname = usePathname();
-  const workspaces = data?.items;
+  const router = useRouter();
 
-  if (isLoading || !workspaces) return <SidebarSkeleton />;
+  // If tokens are gone (cleared by expired session), go to login
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/login");
+    }
+  }, [router]);
+
+  // Only show skeleton on first load (no cached data yet)
+  if (isLoading) return <SidebarSkeleton />;
+
+  // On error or disabled query, fall back to empty list — never stuck in skeleton
+  const workspaces = data?.items ?? [];
 
   return (
     <aside className="w-64 bg-monday-sidebar flex flex-col h-screen shrink-0 text-white" role="navigation" aria-label="Espacios de trabajo">
       <div className="px-5 py-6 border-b border-white/10 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold tracking-tight">
+        <Link href="/" prefetch={false} className="text-xl font-bold tracking-tight">
           Stward Task
         </Link>
         <div className="flex items-center gap-2">
