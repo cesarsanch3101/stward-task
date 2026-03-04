@@ -29,8 +29,8 @@ export function AppSidebar() {
     }
   }, [router]);
 
-  // Only show skeleton on first load (no cached data yet)
-  if (isLoading) return <SidebarSkeleton />;
+  // Show skeleton until data is available (prevents hydration flash)
+  if (isLoading || !data) return <SidebarSkeleton />;
 
   // On error or disabled query, fall back to empty list — never stuck in skeleton
   const workspaces = data?.items ?? [];
