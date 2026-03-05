@@ -65,6 +65,11 @@ class AllowedEmail(models.Model):
         default=User.UserRole.DEVELOPER,
         verbose_name="rol asignado",
     )
+    name = models.CharField(
+        max_length=255, null=True, blank=True,
+        verbose_name="nombre",
+        help_text="Nombre del usuario (opcional). Se usa como nombre visible al hacer su primer login con Google.",
+    )
     invited_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="invitations", verbose_name="invitado por",

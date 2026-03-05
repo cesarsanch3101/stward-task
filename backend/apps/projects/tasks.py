@@ -64,8 +64,14 @@ def send_task_moved_email(self, task_id, old_column_name, new_column_name, mover
         if not recipients:
             return
 
-        inbound_domain = getattr(settings, "INBOUND_EMAIL_DOMAIN", "")
-        reply_to = f"task-{task.id}@{inbound_domain}" if inbound_domain else None
+        # Build Reply-To using Cloudmailin plus-addressing:
+        # cca91010c6927746fa43+task-{uuid}@cloudmailin.net
+        inbound_addr = getattr(settings, "INBOUND_EMAIL_ADDRESS", "")
+        if inbound_addr and "@" in inbound_addr:
+            local, domain = inbound_addr.split("@", 1)
+            reply_to = f"{local}+task-{task.id}@{domain}"
+        else:
+            reply_to = None
 
         frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
         task_url = f"{frontend_url}/boards/{task.column.board.id}" if frontend_url else ""

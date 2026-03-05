@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Shield, Globe } from "lucide-react";
+import { Plus, Trash2, Upload, Shield, Globe, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,9 +33,13 @@ export default function AdminUsersPage() {
 
   const [emailInput, setEmailInput] = useState("");
   const [domainInput, setDomainInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
   const [roleInput, setRoleInput] = useState<UserRole>("desarrollador");
   const [mode, setMode] = useState<"email" | "domain">("email");
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState<UserRole>("desarrollador");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: entries = [], isLoading } = useQuery({
@@ -50,6 +54,7 @@ export default function AdminUsersPage() {
       queryClient.invalidateQueries({ queryKey: ["allowed-emails"] });
       setEmailInput("");
       setDomainInput("");
+      setNameInput("");
       toast.success("Entrada agregada correctamente");
     },
     onError: (err: Error) => {
@@ -71,6 +76,17 @@ export default function AdminUsersPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { role: string; name: string | null } }) =>
+      api.updateAllowedEmail(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allowed-emails"] });
+      setEditingId(null);
+      toast.success("Entrada actualizada");
+    },
+    onError: () => toast.error("Error al actualizar"),
+  });
+
   const bulkMutation = useMutation({
     mutationFn: api.bulkCreateAllowedEmails,
     onSuccess: (created) => {
@@ -80,13 +96,20 @@ export default function AdminUsersPage() {
     onError: () => toast.error("Error al importar CSV"),
   });
 
+  function startEdit(entry: AllowedEmail) {
+    setEditingId(entry.id);
+    setEditName(entry.name ?? "");
+    setEditRole(entry.role as UserRole);
+    setConfirmDeleteId(null);
+  }
+
   function handleAdd() {
     const val = mode === "email" ? emailInput.trim() : domainInput.trim();
     if (!val) return;
     createMutation.mutate(
       mode === "email"
-        ? { email: val, role: roleInput }
-        : { domain: val, role: roleInput }
+        ? { email: val, role: roleInput, name: nameInput.trim() || undefined }
+        : { domain: val, role: roleInput, name: nameInput.trim() || undefined }
     );
   }
 
@@ -101,12 +124,13 @@ export default function AdminUsersPage() {
         .filter(Boolean)
         .slice(1); // skip header
       const entries = lines.map((line) => {
-        const [emailOrDomain, role] = line.split(",").map((s) => s.trim().replace(/"/g, ""));
+        const [emailOrDomain, role, name] = line.split(",").map((s) => s.trim().replace(/"/g, ""));
         const isEmail = emailOrDomain.includes("@");
         return {
           email: isEmail ? emailOrDomain : undefined,
           domain: !isEmail ? emailOrDomain : undefined,
           role: (role as UserRole) ?? "desarrollador",
+          name: name || undefined,
         };
       });
       bulkMutation.mutate(entries);
@@ -185,6 +209,16 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            <div className="flex-1 min-w-[180px] space-y-1">
+              <Label className="text-xs">Nombre (opcional)</Label>
+              <Input
+                placeholder="Ej: Juan Pérez"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              />
+            </div>
+
             <div className="space-y-1 min-w-[160px]">
               <Label className="text-xs">Rol asignado</Label>
               <select
@@ -229,7 +263,8 @@ export default function AdminUsersPage() {
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            CSV formato: <code>email_o_dominio,rol</code> (primera fila = encabezado, se ignora).
+            CSV formato: <code>email_o_dominio,rol,nombre</code> (primera fila = encabezado, se ignora).
+            La columna <code>nombre</code> es opcional.
             Roles válidos: administrador, gestor, desarrollador, observador.
           </p>
         </CardContent>
@@ -258,6 +293,7 @@ export default function AdminUsersPage() {
               <thead>
                 <tr className="border-b border-border/50 text-[11px] uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-2 text-left">Correo / Dominio</th>
+                  <th className="px-4 py-2 text-left">Nombre</th>
                   <th className="px-4 py-2 text-left">Tipo</th>
                   <th className="px-4 py-2 text-left">Rol</th>
                   <th className="px-4 py-2 text-left">Estado</th>
@@ -265,60 +301,131 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry: AllowedEmail) => (
-                  <tr
-                    key={entry.id}
-                    className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-4 py-2.5 font-mono text-xs">
-                      {entry.email ?? `@${entry.domain}`}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {entry.email ? "Email" : "Dominio"}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${ROLE_COLORS[entry.role]}`}>
-                        {ROLE_LABELS[entry.role]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      {entry.used_at ? (
-                        <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                          Activo
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Pendiente
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {confirmDeleteId === entry.id ? (
-                        <span className="flex items-center justify-end gap-1">
-                          <span className="text-xs text-muted-foreground mr-1">¿Eliminar?</span>
-                          <button
-                            onClick={() => deleteMutation.mutate(entry.id)}
-                            className="text-red-500 hover:text-red-700 font-bold text-sm"
-                            aria-label="Confirmar eliminación"
-                          >✓</button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="text-muted-foreground hover:text-foreground font-bold text-sm ml-1"
-                            aria-label="Cancelar"
-                          >✕</button>
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDeleteId(entry.id)}
-                          className="text-muted-foreground hover:text-red-500 transition-colors"
-                          aria-label="Eliminar entrada"
+                {entries.map((entry: AllowedEmail) =>
+                  editingId === entry.id ? (
+                    /* ── Fila en modo edición ── */
+                    <tr key={entry.id} className="border-b border-border/40 last:border-0 bg-muted/20">
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                        {entry.email ?? `@${entry.domain}`}
+                      </td>
+                      <td className="px-4 py-2" colSpan={2}>
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="Nombre (opcional)"
+                          className="h-7 text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") updateMutation.mutate({ id: entry.id, data: { role: editRole, name: editName.trim() } });
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          autoFocus
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <select
+                          value={editRole}
+                          onChange={(e) => setEditRole(e.target.value as UserRole)}
+                          aria-label="Rol asignado"
+                          className="h-7 rounded-md border border-input bg-background px-2 text-xs"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                          {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2" />
+                      <td className="px-4 py-2 text-right">
+                        <span className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => updateMutation.mutate({ id: entry.id, data: { role: editRole, name: editName.trim() } })}
+                            disabled={updateMutation.isPending}
+                            className="text-green-600 hover:text-green-800 transition-colors"
+                            aria-label="Guardar cambios"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label="Cancelar edición"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  ) : (
+                    /* ── Fila normal ── */
+                    <tr
+                      key={entry.id}
+                      className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs">
+                        {entry.email ?? `@${entry.domain}`}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                        {entry.name ?? <span className="italic opacity-50">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                        {entry.email ? "Email" : "Dominio"}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${ROLE_COLORS[entry.role]}`}>
+                          {ROLE_LABELS[entry.role]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {entry.used_at ? (
+                          <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                            Activo
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Pendiente
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        {confirmDeleteId === entry.id ? (
+                          <span className="flex items-center justify-end gap-1">
+                            <span className="text-xs text-muted-foreground mr-1">¿Eliminar?</span>
+                            <button
+                              type="button"
+                              onClick={() => deleteMutation.mutate(entry.id)}
+                              className="text-red-500 hover:text-red-700 font-bold text-sm"
+                              aria-label="Confirmar eliminación"
+                            >✓</button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-muted-foreground hover:text-foreground font-bold text-sm ml-1"
+                              aria-label="Cancelar"
+                            >✕</button>
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(entry)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="Editar entrada"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setConfirmDeleteId(entry.id); setEditingId(null); }}
+                              className="text-muted-foreground hover:text-red-500 transition-colors"
+                              aria-label="Eliminar entrada"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           )}

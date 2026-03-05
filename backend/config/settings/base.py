@@ -182,7 +182,7 @@ EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() == "true"
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@stwards.com")
-INBOUND_EMAIL_DOMAIN = os.environ.get("INBOUND_EMAIL_DOMAIN", "reply.stwards.com")
+INBOUND_EMAIL_ADDRESS = os.environ.get("INBOUND_EMAIL_ADDRESS", "")
 
 # ──────────────────────────────────────────────
 # Google OAuth2 (SSO)

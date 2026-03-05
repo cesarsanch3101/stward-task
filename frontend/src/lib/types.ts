@@ -16,6 +16,7 @@ export interface AllowedEmail {
   email: string | null;
   domain: string | null;
   role: UserRole;
+  name: string | null;
   used_at: string | null;
   created_at: string;
 }

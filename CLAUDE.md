@@ -62,6 +62,15 @@
 | `CORS_ALLOWED_ORIGINS` | `https://stward-task-1cbf3.web.app` |
 | `GOOGLE_CLIENT_ID` | `997565014222-n7sv0q8tlo30kslbq5fkbgbu0egtaskr.apps.googleusercontent.com` |
 | `ALLOWED_HOSTS` | `stward-backend-997565014222.us-central1.run.app` |
+| `EMAIL_BACKEND` | `django.core.mail.backends.smtp.EmailBackend` |
+| `EMAIL_HOST` | `smtp.gmail.com` |
+| `EMAIL_PORT` | `587` |
+| `EMAIL_USE_TLS` | `true` |
+| `EMAIL_HOST_USER` | `screen@stwards.com` |
+| `EMAIL_HOST_PASSWORD` | (App Password Google Workspace) |
+| `DEFAULT_FROM_EMAIL` | `Stward Task <noreply@stwards.com>` |
+| `INBOUND_EMAIL_ADDRESS` | `cca91010c6927746fa43@cloudmailin.net` |
+| `INBOUND_EMAIL_SECRET` | `stward-inbound-2026-xk9p` |
 
 ### Comandos clave de deploy
 ```bash
@@ -91,16 +100,29 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 gcloud run services logs read stward-frontend --region us-central1 --project stward-task-1cbf3 --limit 50
 ```
 
-### Estado del deploy (2026-03-04)
+### Estado del deploy (2026-03-05)
 - ✅ Frontend SSR en Cloud Run (`stward-frontend`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
 - ✅ Backend en Cloud Run, ✅ Neon DB conectada
 - ✅ Login funcionando — admin@stwards.com / admin123
-- ✅ Sprint 10 (Google OAuth + Allowlist) desplegado en producción
-- ✅ Parpadeo sidebar RESUELTO — migración de static export a SSR elimina React hydration mismatch
-- ✅ (auth) route group — AppSidebar compartido, no remonta entre páginas autenticadas
+- ✅ Sprint 12 (Identificación de colaboradores + AllowedEmail nombre) desplegado en producción
+- ✅ Email outbound activo — `noreply@stwards.com` (alias de `screen@stwards.com`) vía SMTP Gmail
+- ✅ Email inbound activo — Cloudmailin free tier, webhook `/api/v1/webhooks/inbound-email`
+- ✅ Migración `0005_allowedemail_name` ejecutada en Neon DB vía Cloud Run Job
 
 ### Pendientes
 _(ninguno crítico)_
+
+### Patrón para ejecutar migraciones en producción (Neon DB)
+```bash
+# Crear job temporal con las vars mínimas y ejecutar
+gcloud run jobs create run-migrate \
+  --image gcr.io/stward-task-1cbf3/stward-backend:latest \
+  --region us-central1 --project stward-task-1cbf3 \
+  --command "python" --args "manage.py,migrate" \
+  --set-env-vars "DJANGO_ENV=production,DJANGO_SETTINGS_MODULE=config.settings,SECRET_KEY=...,DB_HOST=...,POSTGRES_DB=neondb,POSTGRES_USER=neondb_owner,POSTGRES_PASSWORD=...,DB_PORT=5432,ALLOWED_HOSTS=localhost" \
+  --execute-now --wait
+gcloud run jobs delete run-migrate --region us-central1 --project stward-task-1cbf3 --quiet
+```
 
 ### Cloud Run Job — check_overdue_tasks (configurado 2026-03-04)
 - **Job:** `check-overdue-tasks` (us-central1)
@@ -111,7 +133,7 @@ _(ninguno crítico)_
 - **Actualizar job** (tras rebuild backend): `gcloud run jobs update check-overdue-tasks --image gcr.io/stward-task-1cbf3/stward-backend:latest --region us-central1 --project stward-task-1cbf3`
 - **Ejecutar manualmente:** `gcloud run jobs execute check-overdue-tasks --region us-central1 --project stward-task-1cbf3 --wait`
 
-## Sprint 11 — PENDIENTE: Identificación de Colaboradores + Allowlist Nombre
+## Sprint 12 — COMPLETADO: Identificación de Colaboradores + Allowlist Nombre + Email
 
 ### Objetivo
 Hacer visibles los emails/nombres de los colaboradores en tareas y subtareas,
@@ -174,25 +196,23 @@ stwards.com,gestor,
 
 ---
 
-## Email Configuration (pendiente de completar)
-- **Proveedor:** Google Workspace (dominio propio registrado en Google)
-- **Envío (SMTP):** `smtp.gmail.com:587` con App Password de 16 chars
-  - Crear App Password en: myaccount.google.com → Seguridad → Contraseñas de aplicaciones
-  - Variables `.env`: `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
-- **Inbound (respuesta por email → comentario):** pendiente de decidir proveedor
-  - Opción A (recomendada): Cloudmailin — gratis hasta 200/mes, POST al webhook `/api/v1/webhooks/inbound-email`
-  - Opción B: Gmail API + Google Pub/Sub (más complejo)
-  - Opción C: deshabilitar por ahora (comentarios solo desde la app)
+## Email Configuration (ACTIVO)
+- **Proveedor outbound:** Google Workspace SMTP — `screen@stwards.com` autentica, `noreply@stwards.com` es alias
+- **Envío:** `smtp.gmail.com:587` con App Password (16 chars) de `screen@stwards.com`
+- **Inbound:** Cloudmailin free tier (10,000 msgs/mes) — plus-addressing `cca91010c6927746fa43+task-{uuid}@cloudmailin.net`
+  - Webhook: `POST /api/v1/webhooks/inbound-email?token=stward-inbound-2026-xk9p`
+  - Formato: JSON Normalized
+  - Account Cloudmailin: `admin@stwards.com`
 - **Archivos clave:**
-  - `backend/apps/projects/tasks.py` - Celery task `send_task_moved_email`
-  - `backend/apps/projects/webhooks.py` - Endpoint inbound `/api/v1/webhooks/inbound-email`
+  - `backend/apps/projects/tasks.py` - `send_task_moved_email` (outbound + Reply-To), `send_assignment_notification`
+  - `backend/apps/projects/webhooks.py` - Inbound JSON webhook (Cloudmailin format)
   - `backend/templates/projects/email/task_moved.html` - Template HTML del email
-  - `.env.example` - Variables de referencia (`INBOUND_EMAIL_DOMAIN`, `INBOUND_EMAIL_SECRET`)
 - **Test rápido de envío:**
   ```bash
   docker compose exec backend python manage.py shell -c "
   from django.core.mail import send_mail
-  send_mail('Test', 'OK', 'noreply@tudominio.com', ['tu@email.com'])
+  from django.conf import settings
+  send_mail('Test', 'OK', settings.DEFAULT_FROM_EMAIL, ['screen@stwards.com'])
   "
   ```
 
@@ -212,6 +232,8 @@ stwards.com,gestor,
 | Sprint 8 | Completud & Calidad (delete/reorder subtareas, seguridad, Lighthouse, exportar CSV/PDF) | ✅ COMPLETADO |
 | Sprint 9 | UX Dashboard (badges conteo por estado en leyenda) + Deploy Synology NAS | ✅ COMPLETADO |
 | Sprint 10 | Google OAuth2 SSO + Allowlist con Roles Pre-asignados | ✅ COMPLETADO |
+| Sprint 11 | Deploy Producción: Firebase SSR + Cloud Run Job + bug fixes Celery/red | ✅ COMPLETADO |
+| Sprint 12 | Identificación de colaboradores + AllowedEmail nombre + Email outbound/inbound | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -224,7 +246,7 @@ stwards.com,gestor,
 - **Comentarios:** `TaskComment` con `source=app|email`, visible en EditTaskDialog
 - **Notificaciones in-app:** Campana en sidebar con badge, polling 30s, tipos: assigned/moved/comment/completed
 - **Emails outbound:** Celery + SMTP (Gmail Workspace), template HTML `task_moved.html`, `send_task_moved_email` + `send_assignment_notification`
-- **Inbound email:** Webhook `POST /api/v1/webhooks/inbound-email` — reply al email crea comentario en la tarea (Reply-To: `task-{uuid}@reply.stwards.com`)
+- **Inbound email:** Webhook `POST /api/v1/webhooks/inbound-email` — reply al email crea comentario en la tarea. Reply-To usa Cloudmailin plus-addressing: `cca91010c6927746fa43+task-{uuid}@cloudmailin.net`. Acepta JSON Normalized de Cloudmailin.
 - **Todos los usuarios en asignaciones:** `GET /api/v1/users` retorna todos los usuarios activos. Hook `useUsers()` con stale 5min. El selector en crear/editar tarea muestra todos los usuarios del sistema (no solo del workspace).
 - **Visibilidad por rol:** Admin/Manager/Staff ven todas las tareas del tablero. Usuarios regulares ven solo las tareas donde son `assignee`, colaborador (`TaskAssignment`) o `created_by`. Implementado con `Prefetch` filtrado en `BoardService.get_detail()`.
 - **Permisos de workspace:** Todos los miembros del workspace (no solo el owner) pueden crear, editar y mover tareas. `Q(owner=user) | Q(members=user)` + `.distinct()` en `TaskService`.

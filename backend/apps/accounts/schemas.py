@@ -59,6 +59,7 @@ class AllowedEmailSchema(Schema):
     email: str | None
     domain: str | None
     role: str
+    name: str | None
     used_at: datetime | None
     created_at: datetime
 
@@ -67,3 +68,9 @@ class AllowedEmailCreateSchema(Schema):
     email: str | None = Field(None, max_length=255)
     domain: str | None = Field(None, max_length=255)
     role: str = Field("desarrollador", max_length=20)
+    name: str | None = Field(None, max_length=255)
+
+
+class AllowedEmailUpdateSchema(Schema):
+    role: str | None = Field(None, max_length=20)
+    name: str | None = Field(None, max_length=255)

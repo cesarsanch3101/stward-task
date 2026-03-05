@@ -45,7 +45,7 @@ export function AppSidebar() {
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
-          {isLoading ? (
+          {!data ? (
             <div className="space-y-4">
               {[1, 2].map((i) => (
                 <div key={i} className="space-y-2">

@@ -15,6 +15,7 @@ from .models import AllowedEmail, User
 from .schemas import (
     AllowedEmailCreateSchema,
     AllowedEmailSchema,
+    AllowedEmailUpdateSchema,
     ErrorSchema,
     GoogleAuthSchema,
     LoginSchema,
@@ -149,13 +150,22 @@ def google_auth(request, payload: GoogleAuthSchema):
     from django.db import transaction
     from apps.projects.services import WorkspaceService
 
+    # Pre-registered name takes priority over Google profile name
+    if allowed.name:
+        parts = allowed.name.strip().split(" ", 1)
+        pre_first = parts[0]
+        pre_last = parts[1] if len(parts) > 1 else ""
+    else:
+        pre_first = id_info.get("given_name", "")
+        pre_last = id_info.get("family_name", "")
+
     with transaction.atomic():
         user, created = User.objects.get_or_create(
             email=email,
             defaults={
                 "username": email,
-                "first_name": id_info.get("given_name", ""),
-                "last_name": id_info.get("family_name", ""),
+                "first_name": pre_first,
+                "last_name": pre_last,
                 "google_id": id_info["sub"],
                 "avatar_url": id_info.get("picture"),
                 "role": allowed.role,
@@ -169,6 +179,12 @@ def google_auth(request, payload: GoogleAuthSchema):
             if id_info.get("picture"):
                 user.avatar_url = id_info["picture"]
                 update_fields.append("avatar_url")
+            # Apply pre-registered name if the user has no first_name yet
+            if allowed.name and not user.first_name:
+                parts = allowed.name.strip().split(" ", 1)
+                user.first_name = parts[0]
+                user.last_name = parts[1] if len(parts) > 1 else ""
+                update_fields.extend(["first_name", "last_name"])
             if update_fields:
                 user.save(update_fields=update_fields)
         else:
@@ -227,10 +243,37 @@ def create_allowed_email(request, payload: AllowedEmailCreateSchema):
         email=payload.email or None,
         domain=payload.domain or None,
         role=payload.role,
+        name=payload.name or None,
         invited_by=request.auth,
     )
     logger.info("AllowedEmail created by %s: %s", request.auth.email, entry)
     return 201, entry
+
+
+@router.patch(
+    "/allowed-emails/{entry_id}",
+    response={200: AllowedEmailSchema, 400: ErrorSchema, 404: ErrorSchema},
+    auth=jwt_auth,
+)
+def update_allowed_email(request, entry_id: int, payload: AllowedEmailUpdateSchema):
+    """Update name and/or role of an allowlist entry. Admin only."""
+    _require_admin(request.auth)
+    try:
+        entry = AllowedEmail.objects.get(pk=entry_id)
+    except AllowedEmail.DoesNotExist:
+        return 404, {"detail": "Entrada no encontrada."}
+
+    if payload.role is not None:
+        if payload.role not in [r[0] for r in User.UserRole.choices]:
+            return 400, {"detail": f"Rol inválido: {payload.role}"}
+        entry.role = payload.role
+
+    if payload.name is not None:
+        entry.name = payload.name or None
+
+    entry.save(update_fields=["role", "name"])
+    logger.info("AllowedEmail updated by %s: id=%s", request.auth.email, entry_id)
+    return 200, entry
 
 
 @router.delete(
@@ -275,6 +318,7 @@ def bulk_create_allowed_emails(request, payload: list[AllowedEmailCreateSchema])
             email=item.email or None,
             domain=item.domain or None,
             role=item.role,
+            name=item.name or None,
             invited_by=request.auth,
         )
         created.append(entry)

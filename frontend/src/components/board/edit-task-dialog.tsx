@@ -502,7 +502,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                                 <option value="">Sin asignar</option>
                                 {usersQuery.data?.map((u) => (
                                   <option key={u.id} value={u.id}>
-                                    {u.first_name || u.email}
+                                    {u.first_name ? `${u.first_name} ${u.last_name}`.trim() + ` — ${u.email}` : u.email}
                                   </option>
                                 ))}
                               </select>
@@ -583,11 +583,21 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                                 ) : (
                                   <div className="flex items-center gap-1 shrink-0">
                                     {st.assignee && (
-                                      <Avatar className="h-5 w-5">
-                                        <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
-                                          {getInitials(st.assignee.first_name || st.assignee.email)}
-                                        </AvatarFallback>
-                                      </Avatar>
+                                      <div className="flex items-center gap-1">
+                                        <Avatar className="h-5 w-5">
+                                          <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
+                                            {getInitials(st.assignee.first_name || st.assignee.email)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col leading-tight">
+                                          <span className="text-xs font-medium">
+                                            {st.assignee.first_name ? `${st.assignee.first_name} ${st.assignee.last_name}`.trim() : st.assignee.email}
+                                          </span>
+                                          {st.assignee.first_name && (
+                                            <span className="text-[10px] text-muted-foreground">{st.assignee.email}</span>
+                                          )}
+                                        </div>
+                                      </div>
                                     )}
                                     <button
                                       type="button"
@@ -707,9 +717,14 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                                   {getInitials(assignment.user.first_name || assignment.user.email)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-sm font-medium">
-                                {assignment.user.first_name || assignment.user.email}
-                              </span>
+                              <div className="flex flex-col leading-tight">
+                                <span className="text-sm font-medium">
+                                  {assignment.user.first_name ? `${assignment.user.first_name} ${assignment.user.last_name}`.trim() : assignment.user.email}
+                                </span>
+                                {assignment.user.first_name && (
+                                  <span className="text-xs text-muted-foreground">{assignment.user.email}</span>
+                                )}
+                              </div>
                             </div>
                             <span className="text-xs font-bold" style={{ color: assignment.user_color }}>
                               {current}%

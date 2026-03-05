@@ -30,9 +30,12 @@ RATE_LIMIT_ENABLED = False
 CSP_POLICY = None
 
 # ──────────────────────────────────────────────
-# Email — console backend for dev (no SMTP needed)
+# Email — console backend for dev unless overridden by env var
 # ──────────────────────────────────────────────
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+import os as _os
+EMAIL_BACKEND = _os.environ.get(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
 
 # ──────────────────────────────────────────────
 # Celery — run tasks synchronously in dev (no worker needed)

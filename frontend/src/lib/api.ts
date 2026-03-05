@@ -190,9 +190,17 @@ export function createAllowedEmail(data: {
   email?: string;
   domain?: string;
   role: string;
+  name?: string;
 }) {
   return fetcher<AllowedEmail>("/auth/allowed-emails", {
     method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateAllowedEmail(id: number, data: { role?: string; name?: string }) {
+  return fetcher<AllowedEmail>(`/auth/allowed-emails/${id}`, {
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 }
@@ -202,7 +210,7 @@ export function deleteAllowedEmail(id: number) {
 }
 
 export function bulkCreateAllowedEmails(
-  entries: Array<{ email?: string; domain?: string; role: string }>
+  entries: Array<{ email?: string; domain?: string; role: string; name?: string }>
 ) {
   return fetcher<AllowedEmail[]>("/auth/allowed-emails/bulk", {
     method: "POST",
