@@ -1,5 +1,5 @@
 # Manual de Usuario — Stward Task
-**Versión:** 1.4 · **Idioma:** Español · **Fecha:** Marzo 2026
+**Versión:** 1.5 · **Idioma:** Español · **Fecha:** Marzo 2026
 
 ---
 
@@ -22,6 +22,9 @@
 14. [Comportamiento automático del sistema](#14-comportamiento-automático-del-sistema)
 15. [Visibilidad de tareas por rol](#15-visibilidad-de-tareas-por-rol)
 16. [Preguntas frecuentes](#16-preguntas-frecuentes)
+17. [Inicio de sesión con Google (SSO)](#17-inicio-de-sesión-con-google-sso)
+18. [Control de Acceso (Administradores)](#18-control-de-acceso-administradores)
+19. [Próximas mejoras (Sprint 12)](#19-próximas-mejoras-sprint-12)
 
 ---
 
@@ -927,5 +930,16 @@ Para agregar múltiples correos/dominios a la vez:
 
 ---
 
-*Manual generado automáticamente a partir del código fuente de Stward Task v1.4*
+---
+
+## 19. Próximas mejoras (Sprint 12)
+
+Las siguientes funcionalidades están planificadas para la próxima versión:
+
+- **Identificación mejorada de colaboradores:** Las tarjetas de tarea y el panel de subtareas mostrarán el correo electrónico de cada colaborador además de su nombre, facilitando la identificación en equipos grandes.
+- **Pre-registro con nombre:** El panel de Control de Acceso permitirá ingresar el nombre del usuario al pre-registrarlo, para que al hacer su primer login el perfil ya tenga nombre visible.
+
+---
+
+*Manual de Stward Task v1.5 · Marzo 2026*
 *Dominio: stwards.com · Soporte: contacta al administrador de tu instancia*

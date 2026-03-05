@@ -470,7 +470,17 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 | Depurar error de login en producción | HIGH | ✅ |
 | Crear superusuario `admin@stwards.com` en Neon | HIGH | ✅ (ya existía) |
 | Verificar Google OAuth en producción | HIGH | ✅ |
-| Celery/Beat workers en Cloud Run | MEDIUM | ❌ pendiente |
+| Celery/Beat workers en Cloud Run | MEDIUM | ✅ Cloud Run Job + Cloud Scheduler (ver abajo) |
+| Fix: `send_assignment_notification.delay()` crash sin broker → try/except en `signals.py` | HIGH | ✅ `apps/projects/signals.py` |
+| Fix: `send_task_moved_email.delay()` crash sin broker → try/except en `services.py` | HIGH | ✅ `apps/projects/services.py` |
+| Cloud Run Job `check-overdue-tasks` + Cloud Scheduler (00:05 America/Guatemala) | HIGH | ✅ Cloud Run Jobs panel |
+| Management command `check_overdue_tasks` (invoca la función sincrónicamente, sin broker) | MEDIUM | ✅ `apps/projects/management/commands/check_overdue_tasks.py` |
+| Fix: DELETE/PUT falla con ERR_CONNECTION_RESET → `--min-instances=1` en `stward-backend` | HIGH | ✅ Cloud Run config |
+| Fix: `fetchNoContent` retry en error de red (rotación de instancia Cloud Run) | MEDIUM | ✅ `lib/api.ts` |
+| Fix botón "Nuevo espacio de trabajo" invisible en modo claro → `variant="ghost"` | LOW | ✅ `components/sidebar/create-workspace-dialog.tsx` |
+| Fix: React hydration #418/#423 — NO usar `if (isLoading) return skeleton` a nivel de page | HIGH | ✅ varios pages |
+| Fix: Firebase routing rutas dinámicas (`/board/**`, `/workspace/**`) → rewrites específicos en `firebase.json` | HIGH | ✅ `firebase.json` |
+| Migrar frontend de Firebase static export → Cloud Run SSR (`stward-frontend`) | HIGH | ✅ Cloud Run + Docker |
 
 **Notas técnicas:**
 - `--set-env-vars` REEMPLAZA todo → siempre usar `--update-env-vars`
@@ -481,6 +491,31 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 - `config/celery.py` tiene `setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")` → agregar `DJANGO_SETTINGS_MODULE=config.settings` explícitamente en Cloud Run
 - `ALLOWED_HOSTS` se puede corromper con artefactos de Windows CMD si se configura desde cmd.exe — siempre verificar con `gcloud run services describe`
 - Firebase CLI necesita `npm install -g firebase-tools` y reiniciar terminal, o usar ruta completa `C:\Users\...\AppData\Roaming\npm\firebase.cmd`
+- Celery Beat **NO** se usa en Cloud Run (sin Redis). Reemplazado por Cloud Run Job + Cloud Scheduler. En local (Docker Compose) sigue usando Celery Beat.
+- `min-instances=1` en `stward-backend` evita rotación de instancias durante sesiones activas (sin esto, Cloud Run rota instancias y corta conexiones TCP activas → DELETE/PUT fallan)
+
+---
+
+### SPRINT 12 — Visibilidad de Emails y Nombres en Colaboradores ⏳ PENDIENTE
+
+**Objetivo:** Mostrar el nombre o email de cada colaborador en las tarjetas de tarea, subtareas y en la lista de pre-registrados, para facilitar la identificación en equipos con múltiples usuarios.
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| `AllowedEmail` model: añadir campo `name` opcional (nombre del usuario pre-registrado) | HIGH | ⏳ |
+| Migración DB para `AllowedEmail.name` | HIGH | ⏳ |
+| `AllowedEmailSchema` / `AllowedEmailCreateSchema`: exponer campo `name` | MEDIUM | ⏳ |
+| Panel `/admin/users`: campo "Nombre" en formulario de agregar + columna "Nombre" en tabla | MEDIUM | ⏳ |
+| CSV bulk import: soporte de columna `nombre` opcional (`email_o_dominio,rol,nombre`) | LOW | ⏳ |
+| `TaskAssignment` / colaboradores: incluir `email` del usuario en la respuesta del backend | HIGH | ⏳ |
+| `AssigneeSchema` en `schemas.py`: añadir campo `email` | HIGH | ⏳ |
+| `Assignee` type en `types.ts`: añadir campo `email` | HIGH | ⏳ |
+| Tarjetas Kanban: tooltip en avatar muestra `nombre (email)` | MEDIUM | ⏳ |
+| Panel "Progreso por Colaborador" en `EditTaskDialog`: mostrar `nombre (email)` en lugar de solo nombre | HIGH | ⏳ |
+| Subtareas: selector de colaborador muestra `nombre (email)` | MEDIUM | ⏳ |
+| Panel "Carga del Equipo" en Dashboard: columna "Usuario" muestra email como subtítulo | LOW | ⏳ |
+
+**Impacto:** Solo frontend + backend schemas/serializers. Sin cambio de flujo de autenticación.
 
 ---
 
@@ -535,6 +570,8 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-> **✅ Sprints 0-6 completados y validados. Aplicación production-ready con sistema colaborativo, notificaciones, emails, visibilidad por rol, auto-gestión de tareas vencidas y progreso automático por subtareas.**
+> **✅ Sprints 0-11 completados y validados. Aplicación en producción (Firebase + Cloud Run + Neon) con Google OAuth2 SSO, allowlist, sistema colaborativo, notificaciones, emails, visibilidad por rol, auto-gestión de tareas vencidas y progreso automático por subtareas.**
+>
+> **Sprint 12 PENDIENTE:** Visibilidad de emails/nombres en colaboradores de tareas y subtareas + campo `name` en AllowedEmail.
 >
 > **Regla de documentación:** Cada feature nueva debe actualizar CLAUDE.md (Estado Actual) + SPEC.md (sprint) + MANUAL.md (usuario).

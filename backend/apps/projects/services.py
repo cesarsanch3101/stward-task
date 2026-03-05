@@ -492,11 +492,16 @@ class TaskService:
         # Create in-app notifications and send email when task changes column
         if old_column.id != target_column.id:
             NotificationService.create_for_task_move(task, old_column, target_column, user)
-            from apps.projects.tasks import send_task_moved_email
-
-            send_task_moved_email.delay(
-                str(task.id), old_column.name, target_column.name, user.email
-            )
+            try:
+                from apps.projects.tasks import send_task_moved_email
+                send_task_moved_email.delay(
+                    str(task.id), old_column.name, target_column.name, user.email
+                )
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Could not queue task_moved email (no broker): %s", exc
+                )
 
         return task
 

@@ -40,11 +40,12 @@
 ## Deploy en Producción (Google Cloud)
 
 ### URLs activas
-- **Frontend:** https://stward-task-1cbf3.web.app (Firebase Hosting — static export)
+- **Frontend:** https://stward-task-1cbf3.web.app (Firebase Hosting → proxy → Cloud Run SSR)
+- **Frontend Cloud Run:** `stward-frontend` (us-central1) — `gcr.io/stward-task-1cbf3/stward-frontend:latest`
 - **Backend:** https://stward-backend-997565014222.us-central1.run.app (Cloud Run)
 - **DB:** Neon PostgreSQL — `ep-quiet-mountain-ai8frdzt-pooler.c-4.us-east-1.aws.neon.tech`
 - **GCP Project:** `stward-task-1cbf3`
-- **Image:** `gcr.io/stward-task-1cbf3/stward-backend:latest`
+- **Backend Image:** `gcr.io/stward-task-1cbf3/stward-backend:latest`
 
 ### Env vars Cloud Run (actuales)
 | Variable | Valor |
@@ -64,30 +65,114 @@
 
 ### Comandos clave de deploy
 ```bash
-# Rebuild + push backend
+# --- BACKEND ---
 cd backend
 docker build -t gcr.io/stward-task-1cbf3/stward-backend:latest .
 docker push gcr.io/stward-task-1cbf3/stward-backend:latest
 gcloud run deploy stward-backend --image gcr.io/stward-task-1cbf3/stward-backend:latest --region us-central1 --project stward-task-1cbf3
 
-# Rebuild + deploy frontend (desde frontend/)
-Remove-Item -Recurse -Force out; npm run build; firebase deploy --only hosting
+# --- FRONTEND SSR (Next.js standalone → Cloud Run) ---
+# Desde frontend/ — build con NEXT_PUBLIC_ baked en bundle:
+docker build -f Dockerfile.prod \
+  --build-arg NEXT_PUBLIC_API_URL=https://stward-backend-997565014222.us-central1.run.app/api/v1 \
+  --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=997565014222-n7sv0q8tlo30kslbq5fkbgbu0egtaskr.apps.googleusercontent.com \
+  -t gcr.io/stward-task-1cbf3/stward-frontend:latest .
+docker push gcr.io/stward-task-1cbf3/stward-frontend:latest
+gcloud run deploy stward-frontend --image gcr.io/stward-task-1cbf3/stward-frontend:latest --region us-central1 --project stward-task-1cbf3 --allow-unauthenticated --port 3000
 
-# Actualizar env var (NUNCA usar --set-env-vars, borra todo)
+# Firebase Hosting solo redistribuir (si cambian headers/rewrites):
+firebase deploy --only hosting
+
+# Actualizar env var backend (NUNCA usar --set-env-vars, borra todo)
 gcloud run services update stward-backend --region us-central1 --project stward-task-1cbf3 --update-env-vars "KEY=VALUE"
 
 # Ver logs
 gcloud run services logs read stward-backend --region us-central1 --project stward-task-1cbf3 --limit 50
+gcloud run services logs read stward-frontend --region us-central1 --project stward-task-1cbf3 --limit 50
 ```
 
-### Estado del deploy (2026-03-02)
-- ✅ Frontend en Firebase, ✅ Backend en Cloud Run, ✅ Neon DB conectada
+### Estado del deploy (2026-03-04)
+- ✅ Frontend SSR en Cloud Run (`stward-frontend`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
+- ✅ Backend en Cloud Run, ✅ Neon DB conectada
 - ✅ Login funcionando — admin@stwards.com / admin123
 - ✅ Sprint 10 (Google OAuth + Allowlist) desplegado en producción
-- ✅ Fix React hydration errors #418/#423 — Firebase routing corregido para rutas dinámicas
+- ✅ Parpadeo sidebar RESUELTO — migración de static export a SSR elimina React hydration mismatch
+- ✅ (auth) route group — AppSidebar compartido, no remonta entre páginas autenticadas
 
 ### Pendientes
-1. Configurar Celery/Beat en Cloud Run
+_(ninguno crítico)_
+
+### Cloud Run Job — check_overdue_tasks (configurado 2026-03-04)
+- **Job:** `check-overdue-tasks` (us-central1)
+- **Scheduler:** `check-overdue-tasks-daily` — diario 00:05 hora Guatemala (`America/Guatemala`)
+- **Comando:** `python manage.py check_overdue_tasks`
+- **Management command:** `backend/apps/projects/management/commands/check_overdue_tasks.py`
+- **SA:** `997565014222-compute@developer.gserviceaccount.com`
+- **Actualizar job** (tras rebuild backend): `gcloud run jobs update check-overdue-tasks --image gcr.io/stward-task-1cbf3/stward-backend:latest --region us-central1 --project stward-task-1cbf3`
+- **Ejecutar manualmente:** `gcloud run jobs execute check-overdue-tasks --region us-central1 --project stward-task-1cbf3 --wait`
+
+## Sprint 11 — PENDIENTE: Identificación de Colaboradores + Allowlist Nombre
+
+### Objetivo
+Hacer visibles los emails/nombres de los colaboradores en tareas y subtareas,
+y agregar campo `name` al AllowedEmail para pre-registrar nombre antes del primer login Google.
+
+### Archivos a modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/apps/accounts/models.py` | `AllowedEmail` + `name = CharField(null=True, blank=True)` |
+| `backend/apps/accounts/migrations/0005_allowedemail_name.py` | Migración nueva (generar con makemigrations) |
+| `backend/apps/accounts/schemas.py` | `AllowedEmailSchema` + `AllowedEmailCreateSchema` con `name: str \| None` |
+| `backend/apps/accounts/api.py` | En `google_auth()`: si `allowed.name` → usar como `first_name`/`last_name` al crear user |
+| `frontend/src/lib/types.ts` | `AllowedEmail` interface + `name?: string` |
+| `frontend/src/components/board/edit-task-dialog.tsx` | Subtarea row: mostrar nombre+email junto al avatar; Progreso: email bajo el nombre |
+| `frontend/src/app/(auth)/admin/users/page.tsx` | Input "Nombre" en form individual; columna Nombre en tabla; CSV col 3 opcional |
+
+### Detalles de implementación
+
+**Backend — `google_auth()` en `api.py`:**
+```python
+# Si allowed.name está seteado y el usuario es nuevo
+if created and allowed.name:
+    parts = allowed.name.strip().split(" ", 1)
+    User.objects.filter(pk=user.pk).update(
+        first_name=parts[0],
+        last_name=parts[1] if len(parts) > 1 else "",
+    )
+```
+
+**Frontend — Subtarea row en `edit-task-dialog.tsx`:**
+```tsx
+{st.assignee && (
+  <div className="flex items-center gap-1">
+    <Avatar className="h-5 w-5">...</Avatar>
+    <div className="flex flex-col leading-tight">
+      <span className="text-xs font-medium">
+        {st.assignee.first_name || st.assignee.email}
+      </span>
+      {st.assignee.first_name && (
+        <span className="text-[10px] text-muted-foreground">{st.assignee.email}</span>
+      )}
+    </div>
+  </div>
+)}
+```
+
+**Frontend — CSV formato extendido (3ª columna opcional):**
+```
+email_o_dominio,rol,nombre
+cesar@stwards.com,desarrollador,Cesar Sanchez
+stwards.com,gestor,
+```
+
+### Notas
+- `UserMinimalSchema` ya expone `email` → sin cambio de backend para UI de tareas
+- Campo `name` en AllowedEmail es OPCIONAL — no rompe flujos existentes
+- Migración local: `docker compose exec backend python manage.py migrate`
+- Deploy: rebuild backend + frontend → `gcloud run deploy` ambos + `firebase deploy --only hosting`
+
+---
 
 ## Email Configuration (pendiente de completar)
 - **Proveedor:** Google Workspace (dominio propio registrado en Google)
@@ -197,8 +282,17 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 - **`used_at` en AllowedEmail**: se marca la primera vez que el email/dominio se usa para registrar un usuario. Entradas con `used_at = null` → "Pendiente" en la UI.
 - **Cloud Run DB vars**: `base.py` lee `DB_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_PORT` individualmente — NO lee `DATABASE_URL`. Cloud Run debe tener AMBOS sets de vars.
 - **React hydration #418/#423**: Con `output: "export"`, Next.js genera HTML estático sin auth. Al rehidratar con auth, `isLoading` difiere → mismatch. Fix: NO usar `if (isLoading) return skeleton` a nivel de page (ej. `page.tsx`). Siempre renderizar la misma estructura; AppSidebar maneja su propio skeleton internamente.
-- **Firebase routing para rutas dinámicas**: Con `"**" → /index.html`, Firebase servía la home page para `/board/uuid`, causando mismatch de hidratación. Fix: añadir rewrites específicos `/board/**` → `/board/board/index.html` y `/workspace/**` → `/workspace/dashboard/index.html` en `firebase.json`. Requiere `trailingSlash: true` en `next.config.mjs`.
-- **WorkspaceClient hydration**: Estaticamente genera con `isLoading=false && !workspace` → render "no encontrado". Client hydrata con `isLoading=true`. Fix: cambiar `if (isLoading)` a `if (isLoading || !workspace)` para que ambas condiciones usen el mismo skeleton.
+- **Firebase routing para rutas dinámicas (OBSOLETO — reemplazado por SSR)**: Problema histórico con static export. Hoy en día Firebase proxia TODO a `stward-frontend` Cloud Run (SSR), por lo que no hay mismatch de hidratación.
+- **WorkspaceClient hydration (OBSOLETO con SSR)**: Era necesario cambiar `if (isLoading)` a `if (isLoading || !workspace)` con static export. Con SSR, el servidor ya renderiza el estado correcto.
+- **Parpadeo sidebar RESUELTO (SSR)**: Causa raíz era `output: "export"` — Firebase siempre servía `index.html` → React mismatch → flash. Fix definitivo: `output: "standalone"` + Cloud Run service `stward-frontend` + Firebase rewrite con `"run": { "serviceId": "stward-frontend", "region": "us-central1" }`.
+- **(auth) route group**: `src/app/(auth)/layout.tsx` contiene el `<AppSidebar>` compartido. Páginas: `(auth)/page.tsx`, `(auth)/board/[id]/`, `(auth)/workspace/[id]/`, `(auth)/admin/users/`. `login/` permanece fuera. El sidebar monta UNA sola vez y persiste entre navegaciones.
+- **production.py CSP FRONTEND_URL**: `connect-src` e `img-src` incluyen `FRONTEND_URL` env var (default `https://stward-task-1cbf3.web.app`). Configurar vía `--update-env-vars FRONTEND_URL=...` en Cloud Run backend.
+- **login page autocomplete**: Inputs del form deben tener `autoComplete`: email→`"email"`, password→`"current-password"` (login) / `"new-password"` (registro), firstName→`"given-name"`, lastName→`"family-name"`.
+- **api.ts singleton refresh**: `_refreshPromise` módulo-level evita race condition cuando múltiples 401 simultáneos intentan refrescar el token en paralelo. `fetchNoContent` tiene guard `!window.location.pathname.startsWith("/login")` antes de redirigir.
+- **api.ts fetchNoContent retry**: wrappea el primer `fetch()` en try/catch → si hay error de red (connection reset / Cloud Run rotation), reintenta una vez automáticamente. Aplica a DELETE, PUT, POST sin body de respuesta.
+- **Celery sin broker en Cloud Run (CRÍTICO)**: `send_assignment_notification.delay()` en `signals.py` y `send_task_moved_email.delay()` en `services.py` crashan con HTTP 500 si no hay Redis. FIX: ambas llamadas en try/except — si no hay broker, la operación principal (crear/mover tarea) sigue y el email se omite con warning en logs.
+- **Cloud Run min-instances=1 backend**: con `min-instances=0`, Cloud Run rota instancias durante sesiones activas → corta conexiones TCP a mitad de request → DELETE/PUT fallan con ERR_CONNECTION_RESET. FIX: `--min-instances=1` en `stward-backend`.
+- **CreateWorkspaceDialog botón sidebar**: usar `variant="ghost"` + `className="text-white/70 hover:bg-white/10 hover:text-white border border-white/20"` — `variant="outline"` tiene fondo blanco incompatible con sidebar oscuro.
 - **Cloud Run DJANGO_SETTINGS_MODULE**: `config/celery.py` tiene `setdefault(..., "config.settings.development")`. Agregar `DJANGO_SETTINGS_MODULE=config.settings` explícitamente en Cloud Run para evitar que cargue settings de desarrollo.
 - **ALLOWED_HOSTS corrupción**: configurar desde cmd.exe Windows puede inyectar artefactos (`& goto lastline 2>NUL || C:\WINDOWS\...`). Siempre verificar con `gcloud run services describe` y corregir con `--update-env-vars`.
 - **Firebase CLI en PowerShell**: después de `npm install -g firebase-tools`, reiniciar terminal o usar ruta completa `C:\Users\...\AppData\Roaming\npm\firebase.cmd`.
@@ -237,3 +331,5 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 - `docker-compose.synology.yml` - Compose autocontenido para Synology NAS (6 servicios)
 - `frontend/src/app/admin/users/page.tsx` - Panel de gestión de allowlist (solo administradores)
 - `frontend/src/lib/providers.tsx` - GoogleOAuthProvider + ThemeProvider + QueryClientProvider wrappers
+- `frontend/src/app/(auth)/layout.tsx` - Layout compartido para páginas autenticadas (AppSidebar montado una sola vez)
+- `frontend/Dockerfile.prod` - Build multi-stage standalone → Cloud Run frontend (también sirve para Synology)

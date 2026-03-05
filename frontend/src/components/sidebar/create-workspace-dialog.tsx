@@ -38,7 +38,11 @@ export function CreateWorkspaceDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-white/70 hover:bg-white/10 hover:text-white border border-white/20"
+        >
           + Nuevo espacio de trabajo
         </Button>
       </DialogTrigger>

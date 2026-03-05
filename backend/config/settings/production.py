@@ -55,13 +55,15 @@ LOGGING["loggers"]["apps"]["handlers"] = ["json_console"]  # noqa: F405
 # ──────────────────────────────────────────────
 # Content Security Policy
 # ──────────────────────────────────────────────
+_frontend_url = os.environ.get("FRONTEND_URL", "https://stward-task-1cbf3.web.app")
+
 CSP_POLICY = (
     "default-src 'self'; "
     "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; "
+    f"img-src 'self' data: {_frontend_url}; "
     "font-src 'self'; "
-    "connect-src 'self'; "
+    f"connect-src 'self' {_frontend_url}; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "
     "form-action 'self'"

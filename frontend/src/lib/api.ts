@@ -110,7 +110,7 @@ async function fetcher<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function fetchNoContent(path: string, init?: RequestInit) {
-  const res = await fetch(`${getApiBase()}${path}`, {
+  const buildInit = () => ({
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -118,6 +118,14 @@ async function fetchNoContent(path: string, init?: RequestInit) {
       ...init?.headers,
     },
   });
+
+  let res: Response;
+  try {
+    res = await fetch(`${getApiBase()}${path}`, buildInit());
+  } catch {
+    // Network error (connection reset / Cloud Run instance rotation) — retry once
+    res = await fetch(`${getApiBase()}${path}`, buildInit());
+  }
 
   if (res.status === 401 && typeof window !== "undefined") {
     const refreshed = await handleTokenRefresh();

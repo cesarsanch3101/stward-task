@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
 import { setTokens, clearTokens, isAuthenticated } from "@/lib/auth";
+import { workspaceKeys } from "./use-workspaces";
 
 export const authKeys = {
   me: ["auth", "me"] as const,
@@ -25,8 +26,13 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: api.login,
-    onSuccess: (tokens) => {
+    onSuccess: async (tokens) => {
       setTokens(tokens);
+      // Pre-warm workspaces cache so sidebar renders instantly (no loading flash)
+      await queryClient.prefetchQuery({
+        queryKey: workspaceKeys.all,
+        queryFn: api.getWorkspaces,
+      });
       queryClient.invalidateQueries({ queryKey: authKeys.me });
       router.push("/");
     },
@@ -49,8 +55,12 @@ export function useRegister() {
 
   return useMutation({
     mutationFn: api.register,
-    onSuccess: (tokens) => {
+    onSuccess: async (tokens) => {
       setTokens(tokens);
+      await queryClient.prefetchQuery({
+        queryKey: workspaceKeys.all,
+        queryFn: api.getWorkspaces,
+      });
       queryClient.invalidateQueries({ queryKey: authKeys.me });
       router.push("/");
       toast.success("Cuenta creada exitosamente");
@@ -74,8 +84,12 @@ export function useGoogleAuth() {
 
   return useMutation({
     mutationFn: (idToken: string) => api.googleAuth(idToken),
-    onSuccess: (tokens) => {
+    onSuccess: async (tokens) => {
       setTokens(tokens);
+      await queryClient.prefetchQuery({
+        queryKey: workspaceKeys.all,
+        queryFn: api.getWorkspaces,
+      });
       queryClient.invalidateQueries({ queryKey: authKeys.me });
       router.push("/");
     },
