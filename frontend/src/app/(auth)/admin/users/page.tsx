@@ -93,7 +93,14 @@ export default function AdminUsersPage() {
       queryClient.invalidateQueries({ queryKey: ["allowed-emails"] });
       toast.success(`${created.length} entradas importadas`);
     },
-    onError: () => toast.error("Error al importar CSV"),
+    onError: (err: Error) => {
+      try {
+        const parsed = JSON.parse(err.message.replace(/^API \d+: /, ""));
+        toast.error(parsed.detail ?? "Error al importar CSV");
+      } catch {
+        toast.error(err.message || "Error al importar CSV");
+      }
+    },
   });
 
   function startEdit(entry: AllowedEmail) {
@@ -113,23 +120,39 @@ export default function AdminUsersPage() {
     );
   }
 
+  const VALID_ROLES = ["administrador", "gestor", "desarrollador", "observador"];
+
   function handleCSV(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const lines = (ev.target?.result as string)
+      // Strip BOM if present (\uFEFF at start of UTF-8 with BOM files)
+      const raw = (ev.target?.result as string).replace(/^\uFEFF/, "");
+      const lines = raw
         .split(/\r?\n/)
         .map((l) => l.trim())
         .filter(Boolean)
-        .slice(1); // skip header
+        .slice(1); // skip header row
+
+      if (lines.length === 0) {
+        toast.error("El CSV está vacío o solo tiene encabezado");
+        return;
+      }
+
+      // Auto-detect delimiter: semicolon or comma
+      const delimiter = lines[0].includes(";") ? ";" : ",";
+
       const entries = lines.map((line) => {
-        const [emailOrDomain, role, name] = line.split(",").map((s) => s.trim().replace(/"/g, ""));
+        const [emailOrDomain, role, name] = line.split(delimiter).map((s) => s.trim().replace(/"/g, ""));
         const isEmail = emailOrDomain.includes("@");
+        const resolvedRole = role && VALID_ROLES.includes(role.toLowerCase())
+          ? role.toLowerCase()
+          : "desarrollador";
         return {
           email: isEmail ? emailOrDomain : undefined,
           domain: !isEmail ? emailOrDomain : undefined,
-          role: (role as UserRole) ?? "desarrollador",
+          role: resolvedRole as UserRole,
           name: name || undefined,
         };
       });
@@ -224,6 +247,7 @@ export default function AdminUsersPage() {
               <select
                 value={roleInput}
                 onChange={(e) => setRoleInput(e.target.value as UserRole)}
+                aria-label="Rol asignado"
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
               >
                 {Object.entries(ROLE_LABELS).map(([value, label]) => (
@@ -256,6 +280,7 @@ export default function AdminUsersPage() {
                 ref={fileRef}
                 type="file"
                 accept=".csv"
+                aria-label="Importar CSV"
                 className="hidden"
                 onChange={handleCSV}
               />
@@ -297,7 +322,7 @@ export default function AdminUsersPage() {
                   <th className="px-4 py-2 text-left">Tipo</th>
                   <th className="px-4 py-2 text-left">Rol</th>
                   <th className="px-4 py-2 text-left">Estado</th>
-                  <th className="px-4 py-2" />
+                  <th className="px-4 py-2" aria-label="Acciones" />
                 </tr>
               </thead>
               <tbody>
@@ -337,6 +362,7 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-2 text-right">
                         <span className="flex items-center justify-end gap-1">
                           <button
+                            type="button"
                             onClick={() => updateMutation.mutate({ id: entry.id, data: { role: editRole, name: editName.trim() } })}
                             disabled={updateMutation.isPending}
                             className="text-green-600 hover:text-green-800 transition-colors"
@@ -345,6 +371,7 @@ export default function AdminUsersPage() {
                             <Check className="h-4 w-4" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => setEditingId(null)}
                             className="text-muted-foreground hover:text-foreground transition-colors"
                             aria-label="Cancelar edición"

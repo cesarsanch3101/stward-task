@@ -1,6 +1,6 @@
 export function SidebarSkeleton() {
   return (
-    <aside className="w-64 bg-monday-sidebar flex flex-col h-screen shrink-0">
+    <aside className="w-72 bg-monday-sidebar flex flex-col h-screen shrink-0">
       <div className="px-5 py-6 border-b border-white/10">
         <div className="h-6 w-28 bg-white/20 rounded animate-pulse" />
       </div>

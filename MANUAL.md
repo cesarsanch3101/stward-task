@@ -101,6 +101,11 @@ Un **espacio de trabajo** (workspace) es el contenedor de más alto nivel. Dentr
 
 El panel lateral izquierdo muestra todos tus espacios de trabajo con sus tableros anidados.
 
+**Colapsar / expandir el panel lateral:**
+- Haz clic en el ícono ◀ (esquina superior derecha del sidebar) para colapsar el panel a una franja delgada y ganar más espacio para el tablero.
+- Haz clic en el ícono ▶ de la franja para expandirlo de nuevo.
+- El estado (colapsado/expandido) se mantiene mientras navegas entre vistas.
+
 ### 3.2 Crear un espacio de trabajo
 
 1. En la parte inferior del panel lateral, haz clic en **"+ Nuevo espacio de trabajo"**
@@ -879,7 +884,8 @@ El panel de **Control de Acceso** (`/admin/users`) permite a los administradores
 1. En el formulario superior, selecciona **"Correo específico"**
 2. Escribe el correo electrónico completo (ej: `juan@stwards.com`)
 3. Selecciona el rol que tendrá al registrarse: Administrador, Gestor, Desarrollador u Observador
-4. Haz clic en **"Agregar"** (o presiona Enter)
+4. (Opcional) Escribe el **nombre completo** del usuario en el campo "Nombre" — al hacer su primer login con Google, el sistema usará este nombre para su perfil
+5. Haz clic en **"Agregar"** (o presiona Enter)
 
 El correo aparecerá en la tabla con estado **"Pendiente"** hasta que el usuario haga su primer login.
 
@@ -898,14 +904,17 @@ Si quieres dar acceso a todos los correos de un dominio (ej: todos los `@stwards
 
 Para agregar múltiples correos/dominios a la vez:
 
-1. Prepara un archivo `.csv` con este formato:
+1. Prepara un archivo `.csv` con este formato (delimitador `,` o `;`):
    ```
-   email_o_dominio,rol
-   juan@stwards.com,desarrollador
-   maria@empresa.com,gestor
-   stwards.com,observador
+   email_o_dominio,rol,nombre
+   juan@stwards.com,desarrollador,Juan Pérez
+   maria@empresa.com,gestor,María López
+   stwards.com,observador,
    ```
-   (La primera fila es el encabezado y se ignora)
+   - La primera fila es el encabezado y se ignora
+   - La columna **nombre** es opcional — si se incluye, el usuario la verá como su nombre desde el primer login con Google
+   - El sistema acepta delimitadores `,` (coma) o `;` (punto y coma), y detecta cuál usar automáticamente
+   - Los roles se normalizan automáticamente (mayúsculas/minúsculas se aceptan)
 2. Haz clic en el botón **"CSV"**
 3. Selecciona tu archivo
 4. Las entradas se importan automáticamente
@@ -932,12 +941,14 @@ Para agregar múltiples correos/dominios a la vez:
 
 ---
 
-## 19. Próximas mejoras (Sprint 12)
+## 19. Novedades Sprint 12 (2026-03-05)
 
-Las siguientes funcionalidades están planificadas para la próxima versión:
+Las siguientes mejoras fueron implementadas en esta versión:
 
-- **Identificación mejorada de colaboradores:** Las tarjetas de tarea y el panel de subtareas mostrarán el correo electrónico de cada colaborador además de su nombre, facilitando la identificación en equipos grandes.
-- **Pre-registro con nombre:** El panel de Control de Acceso permitirá ingresar el nombre del usuario al pre-registrarlo, para que al hacer su primer login el perfil ya tenga nombre visible.
+- **Identificación mejorada de colaboradores:** En el panel de edición de tarea, cada subtarea muestra el nombre y el correo del colaborador asignado. El selector de asignación también muestra `nombre — email` para facilitar la identificación.
+- **Pre-registro con nombre:** Al agregar un correo al Control de Acceso se puede ingresar el nombre del usuario (formulario individual o columna 3 del CSV). Al hacer su primer login con Google, el perfil queda con nombre visible automáticamente.
+- **Panel lateral colapsable:** Nuevo botón para colapsar/expandir el sidebar y ganar más espacio de trabajo.
+- **CSV flexible:** El importador ahora acepta `,` o `;` como separador y una 3ª columna opcional para el nombre del usuario.
 
 ---
 

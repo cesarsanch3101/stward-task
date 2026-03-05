@@ -250,6 +250,41 @@ def create_allowed_email(request, payload: AllowedEmailCreateSchema):
     return 201, entry
 
 
+@router.post(
+    "/allowed-emails/bulk",
+    response={200: list[AllowedEmailSchema], 400: ErrorSchema},
+    auth=jwt_auth,
+)
+def bulk_create_allowed_emails(request, payload: list[AllowedEmailCreateSchema]):
+    """
+    Create multiple allowlist entries at once. Skips duplicates. Admin only.
+    Must be declared BEFORE /{entry_id} routes to avoid Django URL routing conflict.
+    """
+    _require_admin(request.auth)
+    if len(payload) > 200:
+        return 400, {"detail": "Máximo 200 entradas por importación."}
+
+    created = []
+    for item in payload:
+        if not item.email and not item.domain:
+            continue
+        if item.email and AllowedEmail.objects.filter(email=item.email).exists():
+            continue
+        if item.domain and AllowedEmail.objects.filter(domain=item.domain).exists():
+            continue
+        entry = AllowedEmail.objects.create(
+            email=item.email or None,
+            domain=item.domain or None,
+            role=item.role,
+            name=item.name or None,
+            invited_by=request.auth,
+        )
+        created.append(entry)
+
+    logger.info("Bulk import by %s: %d entries created", request.auth.email, len(created))
+    return 200, created
+
+
 @router.patch(
     "/allowed-emails/{entry_id}",
     response={200: AllowedEmailSchema, 400: ErrorSchema, 404: ErrorSchema},
@@ -291,37 +326,3 @@ def delete_allowed_email(request, entry_id: int):
         return 204, None
     except AllowedEmail.DoesNotExist:
         return 404, {"detail": "Entrada no encontrada."}
-
-
-@router.post(
-    "/allowed-emails/bulk",
-    response={200: list[AllowedEmailSchema], 400: ErrorSchema},
-    auth=jwt_auth,
-)
-def bulk_create_allowed_emails(request, payload: list[AllowedEmailCreateSchema]):
-    """
-    Create multiple allowlist entries at once. Skips duplicates. Admin only.
-    """
-    _require_admin(request.auth)
-    if len(payload) > 200:
-        return 400, {"detail": "Máximo 200 entradas por importación."}
-
-    created = []
-    for item in payload:
-        if not item.email and not item.domain:
-            continue
-        if item.email and AllowedEmail.objects.filter(email=item.email).exists():
-            continue
-        if item.domain and AllowedEmail.objects.filter(domain=item.domain).exists():
-            continue
-        entry = AllowedEmail.objects.create(
-            email=item.email or None,
-            domain=item.domain or None,
-            role=item.role,
-            name=item.name or None,
-            invited_by=request.auth,
-        )
-        created.append(entry)
-
-    logger.info("Bulk import by %s: %d entries created", request.auth.email, len(created))
-    return 200, created

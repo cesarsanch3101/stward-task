@@ -2,7 +2,7 @@
 ## Stward Task — Kanban Board Application
 **Fecha:** 2026-02-17
 **Autor:** AG-ARCHITECT (Mesa Agéntica SASE)
-**Estado:** SPRINT 10 COMPLETADO — Google OAuth2 + Allowlist con Roles
+**Estado:** SPRINT 12 COMPLETADO — Identificación de Colaboradores + AllowedEmail Nombre + Sidebar Colapsable
 
 ---
 
@@ -496,26 +496,26 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-### SPRINT 12 — Visibilidad de Emails y Nombres en Colaboradores ⏳ PENDIENTE
+### SPRINT 12 — Visibilidad de Emails y Nombres en Colaboradores ✅ COMPLETADO
 
 **Objetivo:** Mostrar el nombre o email de cada colaborador en las tarjetas de tarea, subtareas y en la lista de pre-registrados, para facilitar la identificación en equipos con múltiples usuarios.
 
 | Tarea | Prioridad | Estado |
 |-------|-----------|--------|
-| `AllowedEmail` model: añadir campo `name` opcional (nombre del usuario pre-registrado) | HIGH | ⏳ |
-| Migración DB para `AllowedEmail.name` | HIGH | ⏳ |
-| `AllowedEmailSchema` / `AllowedEmailCreateSchema`: exponer campo `name` | MEDIUM | ⏳ |
-| Panel `/admin/users`: campo "Nombre" en formulario de agregar + columna "Nombre" en tabla | MEDIUM | ⏳ |
-| CSV bulk import: soporte de columna `nombre` opcional (`email_o_dominio,rol,nombre`) | LOW | ⏳ |
-| `TaskAssignment` / colaboradores: incluir `email` del usuario en la respuesta del backend | HIGH | ⏳ |
-| `AssigneeSchema` en `schemas.py`: añadir campo `email` | HIGH | ⏳ |
-| `Assignee` type en `types.ts`: añadir campo `email` | HIGH | ⏳ |
-| Tarjetas Kanban: tooltip en avatar muestra `nombre (email)` | MEDIUM | ⏳ |
-| Panel "Progreso por Colaborador" en `EditTaskDialog`: mostrar `nombre (email)` en lugar de solo nombre | HIGH | ⏳ |
-| Subtareas: selector de colaborador muestra `nombre (email)` | MEDIUM | ⏳ |
-| Panel "Carga del Equipo" en Dashboard: columna "Usuario" muestra email como subtítulo | LOW | ⏳ |
+| `AllowedEmail` model: añadir campo `name` opcional (nombre del usuario pre-registrado) | HIGH | ✅ |
+| Migración DB para `AllowedEmail.name` (`0005_allowedemail_name`) | HIGH | ✅ |
+| `AllowedEmailSchema` / `AllowedEmailCreateSchema`: exponer campo `name` | MEDIUM | ✅ |
+| Panel `/admin/users`: campo "Nombre" en formulario de agregar + columna "Nombre" en tabla | MEDIUM | ✅ |
+| CSV bulk import: soporte de columna `nombre` opcional (`email;rol;nombre`) + auto-detect `;`/`,` + strip BOM | LOW | ✅ |
+| `AssigneeSchema` en `schemas.py`: campo `email` expuesto vía `UserMinimalSchema` | HIGH | ✅ |
+| `Assignee` type en `types.ts`: campo `email` expuesto | HIGH | ✅ |
+| Panel "Progreso por Colaborador" en `EditTaskDialog`: muestra email como subtítulo bajo nombre | HIGH | ✅ |
+| Subtareas: selector de colaborador muestra `nombre — email` | MEDIUM | ✅ |
+| Subtarea row: avatar + nombre + email (dos líneas) | MEDIUM | ✅ |
+| Sidebar colapsable: `PanelLeftClose/PanelLeftOpen`, strip `w-12`, ancho `w-72` | MEDIUM | ✅ |
+| Fix backend route ordering: `POST /bulk` antes de `/{entry_id}` en `allowed-emails` | HIGH | ✅ |
 
-**Impacto:** Solo frontend + backend schemas/serializers. Sin cambio de flujo de autenticación.
+**Impacto:** Backend schemas/serializers + frontend UI + UX del sidebar. Sin cambio de flujo de autenticación.
 
 ---
 
@@ -570,8 +570,6 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-> **✅ Sprints 0-11 completados y validados. Aplicación en producción (Firebase + Cloud Run + Neon) con Google OAuth2 SSO, allowlist, sistema colaborativo, notificaciones, emails, visibilidad por rol, auto-gestión de tareas vencidas y progreso automático por subtareas.**
->
-> **Sprint 12 PENDIENTE:** Visibilidad de emails/nombres en colaboradores de tareas y subtareas + campo `name` en AllowedEmail.
+> **✅ Sprints 0-12 completados y validados. Aplicación en producción (Firebase + Cloud Run + Neon) con Google OAuth2 SSO, allowlist con nombres pre-registrados, identificación de colaboradores con email visible, sistema colaborativo, notificaciones, emails, visibilidad por rol, auto-gestión de tareas vencidas, progreso automático por subtareas y sidebar colapsable.**
 >
 > **Regla de documentación:** Cada feature nueva debe actualizar CLAUDE.md (Estado Actual) + SPEC.md (sprint) + MANUAL.md (usuario).
