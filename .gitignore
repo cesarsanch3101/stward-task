@@ -29,3 +29,7 @@ backups/
 
 # Claude Code
 .claude/
+
+# Auto-generated files (no commitear)
+backend/celerybeat-schedule
+frontend/.firebase/
