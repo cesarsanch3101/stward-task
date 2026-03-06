@@ -9,6 +9,7 @@ import { CalendarDays, AlertTriangle, Clock } from "lucide-react";
 import { PriorityBadge } from "./priority-badge";
 import { EditTaskDialog } from "./edit-task-dialog";
 import { isOverdue, wasCompletedLate, daysOverdue } from "@/lib/task-utils";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import type { Task } from "@/lib/types";
 
 function getInitials(name: string): string {
@@ -30,6 +31,8 @@ interface Props {
 
 export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Props) {
   const [editOpen, setEditOpen] = useState(false);
+  const { data: currentUser } = useCurrentUser();
+  const canDrag = currentUser?.role === "administrador";
 
   const {
     attributes,
@@ -41,7 +44,7 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
   } = useSortable({
     id: task.id,
     data: { type: "task", task },
-    disabled: isOverlay,
+    disabled: isOverlay || !canDrag,
   });
 
   const style = {
@@ -61,7 +64,7 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
         style={isOverlay ? undefined : style}
         {...(isOverlay ? {} : attributes)}
         {...(isOverlay ? {} : listeners)}
-        className={`cursor-grab active:cursor-grabbing border shadow-none hover:border-primary/50 transition-colors overflow-hidden ${
+        className={`${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"} border shadow-none hover:border-primary/50 transition-colors overflow-hidden ${
           overdue ? "border-red-500/50 bg-red-50/30 dark:bg-red-950/20" : "bg-card"
         }`}
         tabIndex={0}

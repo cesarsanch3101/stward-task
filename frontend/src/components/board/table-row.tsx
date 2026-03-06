@@ -16,6 +16,7 @@ import { StatusPill } from "./status-pill";
 import { EditTaskDialog } from "./edit-task-dialog";
 import { useUpdateTask, useDeleteTask } from "@/lib/hooks/use-tasks";
 import { isOverdue, wasCompletedLate } from "@/lib/task-utils";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import type { Task, Column, Priority } from "@/lib/types";
 
 interface Props {
@@ -39,6 +40,8 @@ export function TableRow({
   const [localProgress, setLocalProgress] = useState(task.progress);
   const updateTask = useUpdateTask(boardId);
   const deleteTask = useDeleteTask(boardId);
+  const { data: currentUser } = useCurrentUser();
+  const canEdit = currentUser?.role === "administrador";
   const overdue = isOverdue(task);
   const completedLate = wasCompletedLate(task);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -115,8 +118,8 @@ export function TableRow({
 
         {/* Title */}
         <div
-          className="cursor-text truncate px-3 py-2 text-[13px] font-medium h-full flex items-center border-r border-border/30"
-          onClick={() => startEdit("title")}
+          className={`${canEdit ? "cursor-text" : "cursor-default"} truncate px-3 py-2 text-[13px] font-medium h-full flex items-center border-r border-border/30`}
+          onClick={() => canEdit && startEdit("title")}
         >
           {isEditing("title") ? (
             <Input
@@ -179,8 +182,8 @@ export function TableRow({
             </Select>
           ) : (
             <div
-              className="cursor-pointer"
-              onClick={() => startEdit("priority")}
+              className={canEdit ? "cursor-pointer" : "cursor-default"}
+              onClick={() => canEdit && startEdit("priority")}
             >
               <PriorityBadge priority={task.priority as Priority} />
               {task.priority === "none" && (
@@ -215,8 +218,8 @@ export function TableRow({
             />
           ) : (
             <span
-              className="cursor-pointer text-xs text-slate-500"
-              onClick={() => startEdit("start_date")}
+              className={`${canEdit ? "cursor-pointer" : "cursor-default"} text-xs text-slate-500`}
+              onClick={() => canEdit && startEdit("start_date")}
             >
               {formatDate(task.start_date)}
             </span>
@@ -240,8 +243,8 @@ export function TableRow({
             />
           ) : (
             <span
-              className="cursor-pointer text-xs text-slate-500"
-              onClick={() => startEdit("end_date")}
+              className={`${canEdit ? "cursor-pointer" : "cursor-default"} text-xs text-slate-500`}
+              onClick={() => canEdit && startEdit("end_date")}
             >
               {formatDate(task.end_date)}
             </span>
@@ -251,8 +254,8 @@ export function TableRow({
         {/* Progress */}
         <div className="px-3 py-2 h-full border-r border-border/30">
           <div
-            className="flex cursor-pointer items-center gap-2 h-full"
-            onClick={() => startEdit("progress")}
+            className={`flex ${canEdit ? "cursor-pointer" : "cursor-default"} items-center gap-2 h-full`}
+            onClick={() => canEdit && startEdit("progress")}
           >
             <div className="flex-1 h-2 bg-muted/40 rounded-[2px] overflow-hidden flex gap-[1px] p-[0.5px]">
               {task.assignments && task.assignments.length > 0 ? (
@@ -294,15 +297,17 @@ export function TableRow({
           >
             <Pencil className="h-3.5 w-3.5 text-slate-400" />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => deleteTask.mutate(task.id)}
-            disabled={deleteTask.isPending}
-          >
-            <Trash2 className="h-3.5 w-3.5 text-slate-400" />
-          </Button>
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => deleteTask.mutate(task.id)}
+              disabled={deleteTask.isPending}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-slate-400" />
+            </Button>
+          )}
         </div>
       </div>
 

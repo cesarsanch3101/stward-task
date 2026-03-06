@@ -2,7 +2,7 @@
 ## Stward Task — Kanban Board Application
 **Fecha:** 2026-02-17
 **Autor:** AG-ARCHITECT (Mesa Agéntica SASE)
-**Estado:** SPRINT 13 COMPLETADO — Sidebar UX + Visibilidad Gestor + Emails Síncronos + Fix Comentarios
+**Estado:** SPRINT 13+ COMPLETADO — Restricciones rol Desarrollador en EditTaskDialog
 
 ---
 
@@ -550,6 +550,59 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 **Revisiones Cloud Run:**
 - Backend: `stward-backend-00032-qgj` → `00033-xcz` → `00034-pff` → `00035-kwn`
 - Frontend: `stward-frontend-00017-hkd` → `00018-4jb`
+
+---
+
+### SPRINT 13+ — Restricciones de UI para rol Desarrollador ✅ COMPLETADO
+
+**Objetivo:** El rol `desarrollador` solo puede leer información en `EditTaskDialog` y escribir comentarios. Todos los demás controles quedan deshabilitados.
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| `isReadOnly = currentUser?.role === "desarrollador"` en `EditTaskDialog` | HIGH | ✅ `edit-task-dialog.tsx` |
+| Importar `useCurrentUser` de `@/lib/hooks/use-auth` | HIGH | ✅ `edit-task-dialog.tsx` |
+| `disabled={isReadOnly}` en inputs: título, descripción, fechas, prioridad | HIGH | ✅ `edit-task-dialog.tsx` |
+| `disabled={isReadOnly}` en checkboxes de colaboradores y dependencias | HIGH | ✅ `edit-task-dialog.tsx` |
+| `disabled={isReadOnly}` en selects de tarea padre y prioridad | HIGH | ✅ `edit-task-dialog.tsx` |
+| Pills de estado de subtareas: `disabled={isReadOnly}` + `cursor-default` | HIGH | ✅ `edit-task-dialog.tsx` |
+| Sliders de progreso (individual por colaborador y general): `disabled` + `opacity-70` | HIGH | ✅ `edit-task-dialog.tsx` |
+| Ocultar botón "+" agregar subtarea | HIGH | ✅ `edit-task-dialog.tsx` |
+| Ocultar botones reordenar ↑↓ de subtareas | MEDIUM | ✅ `edit-task-dialog.tsx` |
+| Ocultar botones editar (lápiz) y eliminar (papelera) de subtareas | HIGH | ✅ `edit-task-dialog.tsx` |
+| Ocultar botones "Eliminar tarea" y "Guardar cambios" del footer | HIGH | ✅ `edit-task-dialog.tsx` |
+| Footer muestra mensaje "Solo lectura — solo puedes agregar comentarios" | MEDIUM | ✅ `edit-task-dialog.tsx` |
+| Sección comentarios: sin restricciones (completamente interactiva) | — | ✅ sin cambios |
+
+**Notas técnicas:**
+- La restricción es puramente de UI — el backend ya filtra tareas por rol (el desarrollador solo ve sus tareas).
+- `useCurrentUser` usa TanStack Query con `queryKey: ["auth", "me"]` — ya está en caché cuando se abre el diálogo.
+- El modo inline de edición de subtareas (estado al editar) también queda inaccesible porque el botón de edición está oculto.
+- Los datos siguen siendo visibles: asignado de subtarea, colaboradores asignados, dependencias → solo lectura.
+
+---
+
+## Sprint 14 — COMPLETADO: Permisos Kanban/Tabla + Polling + Eliminar Tarea Padre
+
+### Objetivo
+Limitar acciones destructivas/de edición en Kanban y Tabla exclusivamente al Administrador. Refrescar tableros automáticamente para entornos multi-usuario. Quitar el campo "Tarea Padre" del formulario de edición.
+
+### Tareas
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| `task-card.tsx`: `canDrag = role === "administrador"` — disable drag & drop | HIGH | ✅ |
+| `table-row.tsx`: `canEdit = role === "administrador"` — guard inline edits + hide Delete | HIGH | ✅ |
+| `table-group.tsx`: `canEdit = role === "administrador"` — hide "Agregar elemento" | HIGH | ✅ |
+| `use-board.ts`: `refetchInterval: 30_000` en `useBoard()` | MEDIUM | ✅ |
+| `use-workspace-detail.ts`: `refetchInterval: 30_000` en `useQueries` | MEDIUM | ✅ |
+| `edit-task-dialog.tsx`: Eliminar `<Controller name="parent_id">` (selector Tarea Padre) | LOW | ✅ |
+| `edit-task-dialog.tsx`: Título subtarea `break-words` — asignado en fila separada | LOW | ✅ |
+
+### Notas
+- Patrón idéntico a `isReadOnly` en Sprint 13+: `useCurrentUser()` ya en caché → sin request extra.
+- El botón Pencil en tabla-row NO se toca — el diálogo tiene sus propias restricciones por rol.
+- `parent_id` permanece en backend y en `defaultValues` del form — solo se elimina el selector de UI.
+- Polling pausa automáticamente cuando la pestaña está en background (TanStack default).
 
 ---
 

@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TableRow } from "./table-row";
 import { useCreateTask } from "@/lib/hooks/use-tasks";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import { STATUS_BG, STATUS_TEXT } from "@/lib/status-colors";
 import type { Column } from "@/lib/types";
 
@@ -23,6 +24,8 @@ export function TableGroup({
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const createTask = useCreateTask(boardId);
+  const { data: currentUser } = useCurrentUser();
+  const canEdit = currentUser?.role === "administrador";
 
   const statusColor = STATUS_BG[column.status];
   const statusTextColor = STATUS_TEXT[column.status];
@@ -88,21 +91,23 @@ export function TableGroup({
             />
           ))}
           {/* Add item row */}
-          <div
-            className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5"
-            style={{ borderLeft: `4px solid ${statusColor}50` }}
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 gap-1 text-xs text-slate-400 hover:text-slate-600"
-              onClick={handleAddItem}
-              disabled={createTask.isPending}
+          {canEdit && (
+            <div
+              className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5"
+              style={{ borderLeft: `4px solid ${statusColor}50` }}
             >
-              <Plus className="h-3 w-3" />
-              Agregar elemento
-            </Button>
-          </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 text-xs text-slate-400 hover:text-slate-600"
+                onClick={handleAddItem}
+                disabled={createTask.isPending}
+              >
+                <Plus className="h-3 w-3" />
+                Agregar elemento
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

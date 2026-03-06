@@ -456,10 +456,6 @@ La tarea aparece al final de la columna seleccionada.
 - Colaboradores: casillas de selección para agregar o quitar personas del equipo
 
 **Relaciones entre tareas:**
-- **Tarea Padre:** Agrupa esta tarea bajo otra (para crear hitos o grupos)
-  - Selecciona una tarea del mismo tablero como padre
-  - Útil para crear jerarquías: Épica → Tarea → Subtarea
-  - > ⚠️ **Bloqueo:** La tarea hijo no puede avanzar (moverse a una columna posterior) hasta que la tarea padre esté al **100%** de progreso.
 - **Dependencias:** Tareas que deben completarse antes que esta
   - Selecciona una o varias tareas como prerrequisito
   - Se visualizan en la vista Gantt
@@ -776,26 +772,48 @@ Stward Task controla qué tareas puede ver cada usuario según su rol en el sist
 
 ### 15.1 Roles y permisos
 
-| Rol | Qué tareas ve |
-|-----|--------------|
-| **Administrador** | Todas las tareas de todos los tableros |
-| **Gestor** | Solo las tareas donde aparece como asignado, colaborador o creador |
-| **Desarrollador / Observador** | Solo las tareas donde aparece como asignado, colaborador o creador |
+| Rol | Qué tareas ve | Puede editar tareas |
+|-----|--------------|---------------------|
+| **Administrador** | Todas las tareas de todos los tableros | ✅ Acceso completo |
+| **Gestor** | Solo las tareas donde aparece como asignado, colaborador o creador | ✅ Acceso completo |
+| **Desarrollador** | Solo las tareas donde aparece como asignado, colaborador o creador | ❌ Solo lectura + comentarios |
+| **Observador** | Solo las tareas donde aparece como asignado, colaborador o creador | ❌ Solo lectura + comentarios |
 
 > Un gestor o usuario regular no puede ver tareas ajenas aunque estén en el mismo tablero.
 
 ### 15.2 Acceso a tableros
 
-Todos los miembros de un espacio de trabajo pueden:
-- Ver el tablero y sus columnas
-- Crear nuevas tareas
-- Editar y mover tareas (no solo los propietarios del workspace)
+Todos los miembros de un espacio de trabajo pueden ver el tablero y sus columnas.
 
-### 15.3 Acceso automático al workspace
+| Acción | Admin / Gestor | Desarrollador / Observador |
+|--------|---------------|---------------------------|
+| Crear nuevas tareas (Tabla) | ✅ Admin | ❌ |
+| Mover tareas (drag & drop Kanban) | ✅ Admin | ❌ |
+| Edición inline en Vista Tabla | ✅ Admin | ❌ |
+| Eliminar tareas (Vista Tabla) | ✅ Admin | ❌ |
+| Abrir diálogo de edición | ✅ Admin / Gestor | ✅ |
+| Guardar cambios en el diálogo | ✅ Admin / Gestor | ❌ (solo lectura para Desarrollador/Observador) |
+| Gestionar subtareas | ✅ Admin / Gestor | ❌ |
+| Escribir comentarios | ✅ | ✅ |
+
+### 15.3 Modo solo lectura para Desarrolladores
+
+Cuando un usuario con rol **Desarrollador** (u **Observador**) abre el diálogo de edición de una tarea:
+
+- Todos los campos (título, descripción, fechas, prioridad) son **solo visualización** — no se pueden modificar.
+- Los **colaboradores asignados** se muestran pero no se pueden cambiar.
+- La **tarea padre** y las **dependencias** son visibles pero no modificables.
+- Las **subtareas** se muestran con su estado y asignado, pero no se puede cambiar el estado, reordenar, editar ni eliminar.
+- Las **barras de progreso** (individual y general) son visibles pero no arrastrables.
+- Los botones **"Eliminar"** y **"Guardar cambios"** no aparecen.
+- En el pie del diálogo aparece el mensaje: *"Solo lectura — solo puedes agregar comentarios"*.
+- La sección de **comentarios** permanece completamente activa: puedes leer y escribir comentarios.
+
+### 15.4 Acceso automático al workspace
 
 Cuando un administrador asigna una tarea a un colaborador o gestor, ese usuario queda automáticamente como miembro del workspace al que pertenece el tablero. No es necesario que el administrador lo agregue manualmente al workspace.
 
-### 15.4 ¿Por qué no veo todas las tareas?
+### 15.5 ¿Por qué no veo todas las tareas?
 
 Si eres gestor, desarrollador u observador y un tablero parece tener menos tareas de las esperadas, es porque solo ves las tareas que te involucran directamente. Contacta a un administrador para ser asignado a las tareas que necesitas ver.
 
@@ -962,5 +980,26 @@ Las siguientes mejoras fueron implementadas en esta versión:
 
 ---
 
-*Manual de Stward Task v1.6 · Marzo 2026*
+## 20. Novedades — Restricciones rol Desarrollador (2026-03-06)
+
+- **Modo solo lectura para Desarrolladores:** Los usuarios con rol **Desarrollador** (u **Observador**) ahora tienen acceso de solo lectura al diálogo de edición de tareas. Pueden ver toda la información de la tarea pero no pueden modificarla.
+- **Únicamente comentarios disponibles:** La única acción interactiva para un desarrollador dentro del diálogo de tarea es escribir y leer comentarios.
+- **Controles deshabilitados:** Título, descripción, fechas, prioridad, colaboradores, tarea padre, dependencias, subtareas (agregar/editar/eliminar/reordenar/estado) y barras de progreso son de solo visualización.
+- **Indicador visual:** El pie del diálogo muestra *"Solo lectura — solo puedes agregar comentarios"* en lugar de los botones de acción.
+
+Ver [sección 15.3](#153-modo-solo-lectura-para-desarrolladores) para más detalles.
+
+---
+
+## 21. Novedades — Sprint 14: Permisos Kanban/Tabla + Polling (2026-03-06)
+
+- **Solo Administradores pueden mover y editar tareas en el tablero:** Los roles Gestor, Desarrollador y Observador ya no pueden arrastrar tarjetas (drag & drop) ni usar la edición inline en la Vista Tabla. Solo el Administrador puede mover tareas entre columnas, editar campos directamente en la tabla, crear nuevas tareas desde la tabla o eliminarlas desde ahí.
+- **El diálogo de edición sigue accesible para todos:** Cualquier miembro puede abrir el diálogo haciendo clic en el ícono de lápiz. Las restricciones por rol aplican dentro del diálogo (ver sección 15.3).
+- **Actualización automática cada 30 segundos:** El tablero se refresca en segundo plano cada 30 segundos. Si otro usuario crea, mueve o edita una tarea, los cambios aparecerán automáticamente sin recargar la página.
+- **Eliminado el selector "Tarea Padre":** El campo "Tarea Padre (Hito/Grupo)" fue removido del formulario de edición. Las subtareas siguen funcionando igual desde el panel de subtareas.
+- **Título de subtarea completo visible:** El título de cada subtarea ya no se corta con puntos suspensivos — se muestra completo en varias líneas si es necesario. El colaborador asignado aparece en una fila separada debajo del título, con un avatar pequeño y su nombre.
+
+---
+
+*Manual de Stward Task v1.8 · Marzo 2026*
 *Dominio: stwards.com · Soporte: contacta al administrador de tu instancia*

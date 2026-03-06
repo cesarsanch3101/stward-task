@@ -35,6 +35,7 @@ import {
 import { useUpdateTask, useDeleteTask } from "@/lib/hooks/use-tasks";
 import { useBoard, boardKeys } from "@/lib/hooks/use-board";
 import { useUsers } from "@/lib/hooks/use-users";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import * as api from "@/lib/api";
 import { taskSchema, type TaskFormData } from "@/lib/schemas";
 import { CommentSection } from "./comment-section";
@@ -81,6 +82,9 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
   const updateMutation = useUpdateTask(boardId);
   const deleteMutation = useDeleteTask(boardId);
   const queryClient = useQueryClient();
+
+  const { data: currentUser } = useCurrentUser();
+  const isReadOnly = currentUser?.role === "desarrollador";
 
   const boardQuery = useBoard(boardId);
   const usersQuery = useUsers();
@@ -271,6 +275,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                   id="edit-title"
                   {...form.register("title")}
                   autoFocus
+                  disabled={isReadOnly}
                   aria-invalid={!!form.formState.errors.title}
                   aria-errormessage={form.formState.errors.title ? "error-edit-title" : undefined}
                 />
@@ -286,6 +291,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                   id="edit-description"
                   {...form.register("description")}
                   rows={3}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -297,7 +303,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                     control={form.control}
                     name="priority"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isReadOnly}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -318,6 +324,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                     id="edit-start-date"
                     type="date"
                     {...form.register("start_date")}
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -326,6 +333,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                     id="edit-end-date"
                     type="date"
                     {...form.register("end_date")}
+                    disabled={isReadOnly}
                     aria-invalid={!!form.formState.errors.end_date}
                     aria-errormessage={form.formState.errors.end_date ? "error-edit-end-date" : undefined}
                   />
@@ -350,6 +358,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                               <Checkbox
                                 id={`member-${member.id}`}
                                 checked={field.value?.includes(member.id)}
+                                disabled={isReadOnly}
                                 onCheckedChange={(checked) => {
                                   const current = field.value || [];
                                   if (checked) {
@@ -382,35 +391,8 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                 />
               </div>
 
-              {/* Tarea Padre + Dependencias */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label>Tarea Padre (Hito/Grupo)</Label>
-                  <Controller
-                    control={form.control}
-                    name="parent_id"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? "none"}
-                        onValueChange={(v) => field.onChange(v === "none" ? null : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Ninguna" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Ninguna</SelectItem>
-                          {boardQuery.data?.columns.flatMap(c => c.tasks || [])
-                            .filter(t => t.id !== task.id)
-                            .map(t => (
-                              <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
-                            ))
-                          }
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
+              {/* Dependencias */}
+              <div className="flex flex-col gap-2">
                   <Label>Dependencias</Label>
                   <Controller
                     control={form.control}
@@ -426,6 +408,7 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                                   <Checkbox
                                     id={`dep-${t.id}`}
                                     checked={field.value?.includes(t.id)}
+                                    disabled={isReadOnly}
                                     onCheckedChange={(checked) => {
                                       const current = field.value || [];
                                       if (checked) {
@@ -445,7 +428,6 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                       </div>
                     )}
                   />
-                </div>
               </div>
 
             </div>
@@ -459,16 +441,18 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
                     Subtareas {task.subtasks?.length > 0 && `(${task.subtasks.length})`}
                   </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowSubtaskForm((v) => !v)}
-                    aria-label="Agregar subtarea"
-                  >
-                    +
-                  </Button>
+                  {!isReadOnly && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowSubtaskForm((v) => !v)}
+                      aria-label="Agregar subtarea"
+                    >
+                      +
+                    </Button>
+                  )}
                 </div>
 
                 {task.subtasks && task.subtasks.length > 0 ? (
@@ -527,38 +511,41 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                           ) : (
                             /* ── Modo lectura ── */
                             <>
-                              <div className="flex items-center justify-between gap-2">
+                              {/* Fila 1: reorden + título + botones */}
+                              <div className="flex items-start gap-2">
                                 {/* Flechas de reorden */}
-                                <div className="flex flex-col shrink-0">
-                                  <button
-                                    type="button"
-                                    disabled={isFirst || reorderSubtaskMutation.isPending}
-                                    onClick={() => {
-                                      const prev = sorted[idx - 1];
-                                      reorderSubtaskMutation.mutate({ id: st.id, newOrder: prev.order, adjacentId: prev.id, adjacentOrder: st.order });
-                                    }}
-                                    className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-default"
-                                    aria-label="Mover subtarea arriba"
-                                  >
-                                    <ChevronUp className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={isLast || reorderSubtaskMutation.isPending}
-                                    onClick={() => {
-                                      const next = sorted[idx + 1];
-                                      reorderSubtaskMutation.mutate({ id: st.id, newOrder: next.order, adjacentId: next.id, adjacentOrder: st.order });
-                                    }}
-                                    className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-default"
-                                    aria-label="Mover subtarea abajo"
-                                  >
-                                    <ChevronDown className="h-3 w-3" />
-                                  </button>
-                                </div>
-                                <span className={`text-sm font-medium flex-1 truncate ${status === "completed" ? "line-through text-muted-foreground" : ""}`}>
+                                {!isReadOnly && (
+                                  <div className="flex flex-col shrink-0 mt-0.5">
+                                    <button
+                                      type="button"
+                                      disabled={isFirst || reorderSubtaskMutation.isPending}
+                                      onClick={() => {
+                                        const prev = sorted[idx - 1];
+                                        reorderSubtaskMutation.mutate({ id: st.id, newOrder: prev.order, adjacentId: prev.id, adjacentOrder: st.order });
+                                      }}
+                                      className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-default"
+                                      aria-label="Mover subtarea arriba"
+                                    >
+                                      <ChevronUp className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isLast || reorderSubtaskMutation.isPending}
+                                      onClick={() => {
+                                        const next = sorted[idx + 1];
+                                        reorderSubtaskMutation.mutate({ id: st.id, newOrder: next.order, adjacentId: next.id, adjacentOrder: st.order });
+                                      }}
+                                      className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-default"
+                                      aria-label="Mover subtarea abajo"
+                                    >
+                                      <ChevronDown className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                )}
+                                <span className={`text-sm font-medium flex-1 min-w-0 break-words ${status === "completed" ? "line-through text-muted-foreground" : ""}`}>
                                   {st.title}
                                 </span>
-                                {deletingSubtaskId === st.id ? (
+                                {!isReadOnly && deletingSubtaskId === st.id ? (
                                   /* ── Confirmación de eliminación ── */
                                   <div className="flex items-center gap-1 shrink-0">
                                     <span className="text-[10px] text-destructive font-medium">¿Eliminar?</span>
@@ -581,54 +568,53 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    {st.assignee && (
-                                      <div className="flex items-center gap-1">
-                                        <Avatar className="h-5 w-5">
-                                          <AvatarFallback className="text-[8px] bg-blue-100 text-blue-700">
-                                            {getInitials(st.assignee.first_name || st.assignee.email)}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col leading-tight">
-                                          <span className="text-xs font-medium">
-                                            {st.assignee.first_name ? `${st.assignee.first_name} ${st.assignee.last_name}`.trim() : st.assignee.email}
-                                          </span>
-                                          {st.assignee.first_name && (
-                                            <span className="text-[10px] text-muted-foreground">{st.assignee.email}</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => startEditSubtask(st.id, st.title, st.assignee?.id ?? "")}
-                                      className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                      aria-label="Editar subtarea"
-                                    >
-                                      <Pencil className="h-3 w-3" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeletingSubtaskId(st.id)}
-                                      className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                      aria-label="Eliminar subtarea"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-                                  </div>
+                                  !isReadOnly && (
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => startEditSubtask(st.id, st.title, st.assignee?.id ?? "")}
+                                        className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        aria-label="Editar subtarea"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeletingSubtaskId(st.id)}
+                                        className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                        aria-label="Eliminar subtarea"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  )
                                 )}
                               </div>
+                              {/* Fila 2: asignado */}
+                              {st.assignee && (
+                                <div className="flex items-center gap-1.5 pl-6">
+                                  <Avatar className="h-4 w-4 shrink-0">
+                                    <AvatarFallback className="text-[7px] bg-blue-100 text-blue-700">
+                                      {getInitials(st.assignee.first_name || st.assignee.email)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-[11px] text-muted-foreground truncate">
+                                    {st.assignee.first_name ? `${st.assignee.first_name} ${st.assignee.last_name}`.trim() : st.assignee.email}
+                                  </span>
+                                </div>
+                              )}
                               <div className="flex gap-1">
                                 {SUBTASK_STATUSES.map((s) => (
                                   <button
                                     key={s.key}
                                     type="button"
-                                    onClick={() => updateSubtaskMutation.mutate({ subtaskId: st.id, progress: s.progress })}
+                                    onClick={() => !isReadOnly && updateSubtaskMutation.mutate({ subtaskId: st.id, progress: s.progress })}
+                                    disabled={isReadOnly}
                                     className={`flex-1 text-[10px] py-0.5 rounded-full font-medium transition-colors border ${
                                       status === s.key
                                         ? `${s.activeClass} border-transparent`
                                         : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/60"
-                                    }`}
+                                    } ${isReadOnly ? "cursor-default" : ""}`}
                                   >
                                     {s.label}
                                   </button>
@@ -743,7 +729,8 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                                 [assignment.user.id]: Number(e.target.value),
                               }))
                             }
-                            className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                            disabled={isReadOnly}
+                            className={`w-full h-2 rounded-lg appearance-none ${isReadOnly ? "cursor-default opacity-70" : "cursor-pointer"}`}
                             style={{ accentColor: assignment.user_color }}
                           />
                         </div>
@@ -772,7 +759,8 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                       max={100}
                       step={5}
                       {...form.register("progress", { valueAsNumber: true })}
-                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                      disabled={isReadOnly}
+                      className={`w-full h-2 bg-muted rounded-lg appearance-none accent-primary ${isReadOnly ? "cursor-default opacity-70" : "cursor-pointer"}`}
                     />
                   </div>
                 )}
@@ -786,34 +774,40 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
 
           {/* ── Footer fijo ── */}
           <div className="flex justify-between items-center px-6 py-4 shrink-0 border-t border-border/50">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="destructive" size="sm">
-                  Eliminar
+            {isReadOnly ? (
+              <p className="text-sm text-muted-foreground italic ml-auto">Solo lectura — solo puedes agregar comentarios</p>
+            ) : (
+              <>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="destructive" size="sm">
+                      Eliminar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar tarea?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminará &quot;{task.title}&quot; permanentemente. Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        disabled={deleteMutation.isPending}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Guardando..." : "Guardar cambios"}
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar tarea?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Se eliminará &quot;{task.title}&quot; permanentemente. Esta acción no se puede deshacer.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    disabled={deleteMutation.isPending}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Guardando..." : "Guardar cambios"}
-            </Button>
+              </>
+            )}
           </div>
         </form>
       </DialogContent>

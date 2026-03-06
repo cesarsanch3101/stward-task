@@ -15,6 +15,7 @@ export function useWorkspaceDetail(workspaceId: string) {
       queryKey: boardKeys.detail(b.id),
       queryFn: () => api.getBoard(b.id),
       staleTime: 60_000,
+      refetchInterval: 30_000,
     })),
   });
 

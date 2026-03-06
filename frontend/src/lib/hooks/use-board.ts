@@ -17,6 +17,7 @@ export function useBoard(id: string) {
     queryKey: boardKeys.detail(id),
     queryFn: () => api.getBoard(id),
     enabled: !!id && (typeof window === "undefined" || isAuthenticated()),
+    refetchInterval: 30_000,
   });
 }
 

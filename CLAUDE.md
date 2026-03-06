@@ -101,10 +101,14 @@ gcloud run services logs read stward-frontend --region us-central1 --project stw
 ```
 
 ### Estado del deploy (2026-03-06)
-- ✅ Frontend SSR en Cloud Run (`stward-frontend` rev `00018-4jb`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
+- ✅ Frontend SSR en Cloud Run (`stward-frontend` rev `00011-ctb`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
 - ✅ Backend en Cloud Run (`stward-backend` rev `00035-kwn`), ✅ Neon DB conectada
 - ✅ Login funcionando — admin@stwards.com / admin123
 - ✅ Sprint 13 desplegado en producción: sidebar UX, visibilidad gestor, comentarios fix, emails síncronos
+- ✅ Restricciones rol Desarrollador desplegadas — `stward-frontend-00019-79h` (solo lectura + comentarios)
+- ✅ Sprint 14 desplegado — `stward-frontend-00020-ql2`: permisos Kanban/Tabla (solo admin), polling 30s, selector Tarea Padre eliminado
+- ✅ Fix UX subtareas — `stward-frontend-00021-4k4`: título con `break-words` (sin truncar), asignado en fila separada debajo del título
+- ✅ Sidebar `w-72` (288px) + sin auto-colapso al navegar entre workspaces
 - ✅ Email outbound activo — `noreply@stwards.com` (alias de `screen@stwards.com`) vía SMTP Gmail
 - ✅ Email inbound activo — Cloudmailin free tier, webhook `/api/v1/webhooks/inbound-email`
 - ✅ Emails 100% síncronos (sin Celery/Redis): asignación, movimiento, comentario
@@ -220,6 +224,36 @@ Corregir la UX del sidebar (botones ⋯ no visibles), restringir la visibilidad 
 
 ---
 
+## Sprint 14 — COMPLETADO: Permisos Kanban/Tabla + Polling + Eliminar Tarea Padre
+
+### Objetivo
+Restringir las acciones de movimiento y edición en el Kanban y la Vista Tabla exclusivamente al rol Administrador. Añadir polling automático de 30s para refrescar tareas en entornos multi-usuario. Eliminar el selector "Tarea Padre (Hito/Grupo)" del formulario de edición (no se usaba y generaba confusión).
+
+### Cambios realizados
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/src/components/board/task-card.tsx` | `canDrag = role === "administrador"` — `disabled: isOverlay \|\| !canDrag`; cursor condicional `grab` vs `default` |
+| `frontend/src/components/board/table-row.tsx` | `canEdit = role === "administrador"` — todos los `onClick` de edición inline guardados con `canEdit &&`; botón Delete envuelto en `{canEdit && ...}` |
+| `frontend/src/components/board/table-group.tsx` | `canEdit = role === "administrador"` — botón "Agregar elemento" envuelto en `{canEdit && ...}` |
+| `frontend/src/lib/hooks/use-board.ts` | `refetchInterval: 30_000` añadido a `useBoard()` |
+| `frontend/src/lib/hooks/use-workspace-detail.ts` | `refetchInterval: 30_000` añadido a `useQueries` de boards |
+| `frontend/src/components/board/edit-task-dialog.tsx` | Eliminada sección "Tarea Padre (Hito/Grupo)" (Controller + Select con `parent_id`) |
+
+### Resumen de permisos
+
+| Acción | Admin | Gestor | Desarrollador | Observador |
+|--------|-------|--------|---------------|------------|
+| Drag & drop Kanban | ✅ | ❌ | ❌ | ❌ |
+| Edición inline Tabla | ✅ | ❌ | ❌ | ❌ |
+| Eliminar tarea (Tabla) | ✅ | ❌ | ❌ | ❌ |
+| Agregar tarea (Tabla) | ✅ | ❌ | ❌ | ❌ |
+| Abrir Edit Dialog | ✅ | ✅ | ✅ | ✅ |
+| Guardar en Edit Dialog | ✅ | ✅ | ❌ | ❌ |
+| Comentar | ✅ | ✅ | ✅ | ✅ |
+
+---
+
 ## Email Configuration (ACTIVO)
 - **Proveedor outbound:** Google Workspace SMTP — `screen@stwards.com` autentica, `noreply@stwards.com` es alias
 - **Envío:** `smtp.gmail.com:587` con App Password (16 chars) de `screen@stwards.com`
@@ -259,6 +293,8 @@ Corregir la UX del sidebar (botones ⋯ no visibles), restringir la visibilidad 
 | Sprint 11 | Deploy Producción: Firebase SSR + Cloud Run Job + bug fixes Celery/red | ✅ COMPLETADO |
 | Sprint 12 | Identificación de colaboradores + AllowedEmail nombre + Email outbound/inbound | ✅ COMPLETADO |
 | Sprint 13 | Sidebar UX (flex-sibling) + Visibilidad Gestor + Fix Comentarios + Emails Síncronos | ✅ COMPLETADO |
+| Sprint 13+ | Restricciones UI rol Desarrollador en EditTaskDialog (solo lectura + comentarios) | ✅ COMPLETADO |
+| Sprint 14 | Permisos Kanban/Tabla + Polling 30s + Eliminar selector Tarea Padre | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -298,6 +334,11 @@ Corregir la UX del sidebar (botones ⋯ no visibles), restringir la visibilidad 
 - **Fix comentarios (Sprint 13):** `CommentSection` tenía `<form>` anidado dentro del `<form>` del `EditTaskDialog` (línea 260). HTML descarta forms internos — botón "Enviar" no hacía POST. Fix: `<div>` + `type="button"` + `onClick={handleSend}` + Ctrl+Enter.
 - **Email en comentarios (Sprint 13):** `CommentService._send_comment_email()` — llamada síncrona desde `CommentService.create()`. Notifica a todos los asignados + creador, excluyendo al comentador. Reply-To via Cloudmailin plus-addressing.
 - **Emails síncronos sin Celery (Sprint 13):** `send_assignment_notification.delay()` → llamada directa en `signals.py`. `send_task_moved_email.delay()` → llamada directa en `services.py`. `send_task_moved_email`: quitado `bind=True, max_retries, default_retry_delay`, reemplazado `self.retry()` por `logger.warning()`, `fail_silently=True`.
+- **Restricciones rol Desarrollador en EditTaskDialog:** `isReadOnly = currentUser?.role === "desarrollador"`. Cuando es `true`: todos los campos del formulario `disabled`, pills de estado subtarea `disabled`, sliders de progreso `disabled + opacity-70`, botones reordenar/editar/eliminar subtarea ocultos, botón "+" subtarea oculto, footer muestra "Solo lectura — solo puedes agregar comentarios" en vez de los botones de acción. Comentarios permanecen interactivos. Solo requiere `useCurrentUser` (ya en caché).
+- **Permisos Kanban/Tabla (Sprint 14):** `canDrag/canEdit = currentUser?.role === "administrador"` — patrón análogo a `isReadOnly`. Drag & drop deshabilitado con `useSortable({ disabled: isOverlay || !canDrag })`. Edición inline en `table-row.tsx` guardada con `canEdit && startEdit(field)`. Botón Delete y fila "Agregar elemento" envueltos en `{canEdit && ...}`. Botón Pencil (abre EditTaskDialog) sin restricción — el diálogo tiene sus propias reglas.
+- **Polling multi-usuario:** `refetchInterval: 30_000` en `useBoard()` y en `useQueries` de `useWorkspaceDetail`. Pausa automáticamente cuando la pestaña está en segundo plano (`refetchIntervalInBackground: false` es el default de TanStack Query).
+- **Selector Tarea Padre eliminado:** El `<Controller name="parent_id">` con `<Select>` fue eliminado del `EditTaskDialog`. El campo `parent_id` permanece en el backend (modelos, schemas, `recalculate_parent_progress`) y en `defaultValues` del form — la lógica de subtareas sigue intacta.
+- **Subtarea título wrap (Sprint 14+):** Cambiado de `truncate` a `break-words min-w-0` en el span del título. El asignado se movió de la misma fila a una fila separada debajo (`pl-6`, avatar `h-4 w-4`, nombre en `text-[11px] text-muted-foreground truncate`). Los botones de editar/eliminar quedaron solos en el extremo derecho de la fila del título. Fila del título usa `items-start` para alinear al tope cuando el título tiene varias líneas.
 - **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt, Dashboard Workspace, Gantt Workspace
 - **CI/CD:** GitHub Actions (7 jobs: lint → test → build → E2E → SBOM → security scan)
 - **Tests:** 56 backend (pytest, 88% cov) + 18 frontend (Vitest + RTL) + Playwright E2E
