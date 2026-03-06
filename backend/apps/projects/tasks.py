@@ -39,8 +39,8 @@ def send_assignment_notification(assignment_id):
         print(f"Error sending email: {e}")
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_task_moved_email(self, task_id, old_column_name, new_column_name, mover_email):
+@shared_task
+def send_task_moved_email(task_id, old_column_name, new_column_name, mover_email):
     """Sends an email notification when a task is moved to another column."""
     try:
         task = (
@@ -96,12 +96,12 @@ def send_task_moved_email(self, task_id, old_column_name, new_column_name, mover
                 reply_to=[reply_to] if reply_to else [],
             )
             msg.attach_alternative(html_body, "text/html")
-            msg.send(fail_silently=False)
+            msg.send(fail_silently=True)
 
     except Task.DoesNotExist:
         pass
     except Exception as exc:
-        raise self.retry(exc=exc)
+        logger.warning("send_task_moved_email failed for task %s: %s", task_id, exc)
 
 
 @shared_task

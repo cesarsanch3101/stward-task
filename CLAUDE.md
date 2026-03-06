@@ -100,14 +100,16 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 gcloud run services logs read stward-frontend --region us-central1 --project stward-task-1cbf3 --limit 50
 ```
 
-### Estado del deploy (2026-03-05)
-- ✅ Frontend SSR en Cloud Run (`stward-frontend`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
-- ✅ Backend en Cloud Run, ✅ Neon DB conectada
+### Estado del deploy (2026-03-06)
+- ✅ Frontend SSR en Cloud Run (`stward-frontend` rev `00018-4jb`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
+- ✅ Backend en Cloud Run (`stward-backend` rev `00035-kwn`), ✅ Neon DB conectada
 - ✅ Login funcionando — admin@stwards.com / admin123
-- ✅ Sprint 12 (Identificación de colaboradores + AllowedEmail nombre) desplegado en producción
+- ✅ Sprint 13 desplegado en producción: sidebar UX, visibilidad gestor, comentarios fix, emails síncronos
 - ✅ Email outbound activo — `noreply@stwards.com` (alias de `screen@stwards.com`) vía SMTP Gmail
 - ✅ Email inbound activo — Cloudmailin free tier, webhook `/api/v1/webhooks/inbound-email`
-- ✅ Migración `0005_allowedemail_name` ejecutada en Neon DB vía Cloud Run Job
+- ✅ Emails 100% síncronos (sin Celery/Redis): asignación, movimiento, comentario
+- ✅ Comentarios guardándose y mostrándose correctamente (fix bug nested `<form>`)
+- ✅ Gestor ve solo tareas asignadas/creadas (igual que colaboradores)
 
 ### Pendientes
 _(ninguno crítico)_
@@ -196,6 +198,28 @@ stwards.com,gestor,
 
 ---
 
+## Sprint 13 — COMPLETADO: Sidebar UX + Visibilidad Gestor + Fix Comentarios + Emails Síncronos
+
+### Objetivo
+Corregir la UX del sidebar (botones ⋯ no visibles), restringir la visibilidad del rol Gestor para que solo vea sus tareas asignadas (no todas como admin), arreglar el bug donde los comentarios no se guardaban, y eliminar Celery del flujo de emails (incompatible con Cloud Run serverless).
+
+### Cambios realizados
+
+| Archivo | Cambio |
+|---------|--------|
+| `frontend/src/components/sidebar/app-sidebar.tsx` | Layout flex-sibling para botones ⋯; collapse button `h-8 w-8`; `title={board.name}`; board ⋯ `group-hover opacity` |
+| `frontend/src/components/sidebar/create-workspace-dialog.tsx` | Trigger: `<button>` nativo con `Plus` icon, sin `border border-white/20` |
+| `frontend/src/components/board/comment-section.tsx` | `<form>` → `<div>`; `type="button"` + `onClick={handleSend}`; Ctrl+Enter shortcut |
+| `backend/apps/projects/services.py` | `BoardService.get_detail()`: quitar MANAGER de `is_privileged`; `sync_assignments()`: auto-add a `workspace.members`; `CommentService.create()`: llama `_send_comment_email()`; `CommentService._send_comment_email()`: nuevo método estático; `TaskService.move()`: `.delay()` → llamada directa |
+| `backend/apps/projects/signals.py` | `send_assignment_notification.delay()` → `send_assignment_notification()` |
+| `backend/apps/projects/tasks.py` | `send_task_moved_email`: quitar `bind=True/max_retries/default_retry_delay`; quitar `self.retry()`; `fail_silently=True` |
+
+### Revisiones Cloud Run
+- Backend: `00032-qgj` (gestor) → `00033-xcz` (workspace member) → `00034-pff` (comment email) → `00035-kwn` (Celery removal)
+- Frontend: `00017-hkd` (sidebar visual) → `00018-4jb` (comment fix)
+
+---
+
 ## Email Configuration (ACTIVO)
 - **Proveedor outbound:** Google Workspace SMTP — `screen@stwards.com` autentica, `noreply@stwards.com` es alias
 - **Envío:** `smtp.gmail.com:587` con App Password (16 chars) de `screen@stwards.com`
@@ -234,6 +258,7 @@ stwards.com,gestor,
 | Sprint 10 | Google OAuth2 SSO + Allowlist con Roles Pre-asignados | ✅ COMPLETADO |
 | Sprint 11 | Deploy Producción: Firebase SSR + Cloud Run Job + bug fixes Celery/red | ✅ COMPLETADO |
 | Sprint 12 | Identificación de colaboradores + AllowedEmail nombre + Email outbound/inbound | ✅ COMPLETADO |
+| Sprint 13 | Sidebar UX (flex-sibling) + Visibilidad Gestor + Fix Comentarios + Emails Síncronos | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -267,6 +292,12 @@ stwards.com,gestor,
 - **Identificación de colaboradores + AllowedEmail nombre (Sprint 12):** Campo `name` en `AllowedEmail` (migración `0005_allowedemail_name`). Al crear usuario vía Google, si `allowed.name` está seteado se usa como `first_name/last_name`. Panel Control de Acceso muestra columna "Nombre" y acepta nombre en formulario individual y como 3ª columna en CSV. `EditTaskDialog`: subtarea row muestra nombre+email junto al avatar; selector inline muestra `nombre — email`; sección "Progreso por Colaborador" muestra email como subtítulo.
 - **Sidebar colapsable:** Botones `PanelLeftClose/PanelLeftOpen` para colapsar/expandir. Estado en `useUIStore.sidebarOpen`. Colapsado: strip `w-12` con solo el botón de expandir. Expandido: `w-72`. NO auto-colapsa al navegar (fue revertido por UX).
 - **CSV import mejorado (Control de Acceso):** Auto-detecta delimitador (`;` o `,`). Strip BOM `\uFEFF`. Normalización de rol case-insensitive. 3ª columna opcional: `email_o_dominio;rol;nombre`. Mejor parsing de error de API en `onError`.
+- **Sidebar UX mejorado (Sprint 13):** Botones ⋯ workspace/board como hermanos flex (`shrink-0`) — ya no se pierden por `overflow: hidden`. Board ⋯: `opacity-0 group-hover:opacity-100`. Collapse button: `h-8 w-8 flex items-center justify-center hover:bg-white/10`. `CreateWorkspaceDialog` trigger: `<button>` nativo con icono `Plus`, sin borde.
+- **Visibilidad Gestor restringida (Sprint 13):** `is_privileged` en `BoardService.get_detail()` ya NO incluye `MANAGER`. El gestor usa el mismo filtro que colaboradores: `Q(assignee=user) | Q(assignments__user=user) | Q(created_by=user)`.
+- **Auto-membresía workspace (Sprint 13):** `TaskService.sync_assignments()` llama `workspace.members.add(*assignee_ids)` al asignar tareas. El gestor/colaborador asignado queda automáticamente como miembro del workspace — sin API adicional.
+- **Fix comentarios (Sprint 13):** `CommentSection` tenía `<form>` anidado dentro del `<form>` del `EditTaskDialog` (línea 260). HTML descarta forms internos — botón "Enviar" no hacía POST. Fix: `<div>` + `type="button"` + `onClick={handleSend}` + Ctrl+Enter.
+- **Email en comentarios (Sprint 13):** `CommentService._send_comment_email()` — llamada síncrona desde `CommentService.create()`. Notifica a todos los asignados + creador, excluyendo al comentador. Reply-To via Cloudmailin plus-addressing.
+- **Emails síncronos sin Celery (Sprint 13):** `send_assignment_notification.delay()` → llamada directa en `signals.py`. `send_task_moved_email.delay()` → llamada directa en `services.py`. `send_task_moved_email`: quitado `bind=True, max_retries, default_retry_delay`, reemplazado `self.retry()` por `logger.warning()`, `fail_silently=True`.
 - **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt, Dashboard Workspace, Gantt Workspace
 - **CI/CD:** GitHub Actions (7 jobs: lint → test → build → E2E → SBOM → security scan)
 - **Tests:** 56 backend (pytest, 88% cov) + 18 frontend (Vitest + RTL) + Playwright E2E
@@ -325,6 +356,12 @@ stwards.com,gestor,
 - **CSV import delimiter**: el CSV de allowlist usa `;` como separador (Excel en español). Frontend auto-detecta: `const delimiter = lines[0].includes(";") ? ";" : ",";`. Strip BOM: `raw.replace(/^\uFEFF/, "")`. Sin esto, la primera entrada se corrompe.
 - **Sidebar colapsable**: `useUIStore` tiene `sidebarOpen` (bool), `toggleSidebar`, `setSidebarOpen`. Collapsed strip: `w-12`. Full sidebar: `w-72`. No usar `setSidebarOpen(false)` en el Link del workspace — oculta boards y botones del footer.
 - **AllowedEmail.name en google_auth()**: lógica de split: `parts = allowed.name.strip().split(" ", 1)` → `first_name=parts[0], last_name=parts[1] if len(parts) > 1 else ""`. Solo aplica si `created and allowed.name`.
+- **Nested `<form>` elements (CRÍTICO)**: HTML no permite `<form>` anidados — el browser descarta el form interno silenciosamente. Síntoma: botón "Enviar" del comentario no hacía ningún POST. Fix: usar `<div>` en lugar de `<form>` para sub-secciones dentro de un formulario padre. Siempre usar `type="button"` + `onClick` en botones de formularios anidados.
+- **Sidebar botones ⋯ recortados**: `overflow-hidden` en el `<aside>` + `overflow-y-auto` en el contenedor interno crean stacking context que recorta elementos con `position: absolute`. Fix definitivo: layout flex-sibling — el botón ⋯ es hermano del Link con `shrink-0`, el Link tiene `flex-1 min-w-0`.
+- **Gestor visibilidad (Sprint 13)**: `is_privileged` en `BoardService.get_detail()` ya NO incluye `UserModel.UserRole.MANAGER`. Gestor = mismo filtro que colaboradores. Requería también `sync_assignments()` auto-añadiendo a `workspace.members` para que el gestor pueda ver el workspace.
+- **Auto-membresía workspace**: cuando se asigna una tarea, `sync_assignments()` llama `workspace.members.add(*assignee_ids)`. Sin esto, el gestor o colaborador asignado no puede ver el workspace (lo filtra el queryset `Q(owner=user) | Q(members=user)`).
+- **Emails síncronos (Sprint 13)**: `send_assignment_notification()` y `send_task_moved_email()` se llaman directamente (sin `.delay()`). La anotación `@shared_task` se conserva pero no se usa en Cloud Run. En local, Celery seguiría funcionando si estuviera corriendo. `fail_silently=True` en todos los envíos de email para no crashear si SMTP falla.
+- **`CommentService._send_comment_email()`**: método estático en `services.py`. Re-fetchea la tarea con `select_related('column__board', 'assignee')` + `prefetch_related('assignments__user')`. Recipients = assignees + creador, excluye al comentador. Reply-To via Cloudmailin plus-addressing. Llamada en try/except — si falla no bloquea la creación del comentario.
 
 ### Regla de documentación (OBLIGATORIA)
 > Cada vez que se agregue una funcionalidad nueva, se deben actualizar:

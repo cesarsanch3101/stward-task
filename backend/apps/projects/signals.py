@@ -8,9 +8,9 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=TaskAssignment)
 def trigger_assignment_notification(sender, instance, created, **kwargs):
-    """Triggers a Celery task to send an email when a new assignment is created."""
+    """Sends an email notification when a new assignment is created."""
     if created:
         try:
-            send_assignment_notification.delay(str(instance.id))
+            send_assignment_notification(str(instance.id))
         except Exception as exc:
-            logger.warning("Could not queue assignment notification (no broker): %s", exc)
+            logger.warning("Could not send assignment notification: %s", exc)

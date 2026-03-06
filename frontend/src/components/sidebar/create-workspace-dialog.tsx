@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Plus } from "lucide-react";
 import { useCreateWorkspace } from "@/lib/hooks/use-workspaces";
 import { workspaceSchema, type WorkspaceFormData } from "@/lib/schemas";
 
@@ -38,13 +39,13 @@ export function CreateWorkspaceDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full text-white/70 hover:bg-white/10 hover:text-white border border-white/20"
+        <button
+          type="button"
+          className="flex items-center gap-2 px-3 py-2 text-sm rounded w-full text-white/70 hover:bg-white/10 hover:text-white transition-colors"
         >
-          + Nuevo espacio de trabajo
-        </Button>
+          <Plus className="h-3.5 w-3.5 shrink-0" />
+          Nuevo espacio de trabajo
+        </button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

@@ -2,7 +2,7 @@
 ## Stward Task — Kanban Board Application
 **Fecha:** 2026-02-17
 **Autor:** AG-ARCHITECT (Mesa Agéntica SASE)
-**Estado:** SPRINT 12 COMPLETADO — Identificación de Colaboradores + AllowedEmail Nombre + Sidebar Colapsable
+**Estado:** SPRINT 13 COMPLETADO — Sidebar UX + Visibilidad Gestor + Emails Síncronos + Fix Comentarios
 
 ---
 
@@ -519,6 +519,40 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
+### SPRINT 13 — Sidebar UX, Visibilidad Gestor y Emails Sincronos ✅ COMPLETADO
+
+**Objetivo:** Corregir visibilidad de botones ⋯ en el sidebar, aplicar restricción de visibilidad para el rol Gestor (igual que colaboradores), arreglar el bug de comentarios que nunca llegaban al backend, y eliminar Celery del flujo de emails (incompatible con Cloud Run).
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| **Sidebar: layout flex-sibling** — botones ⋯ de workspace/board ahora son hermanos flex (shrink-0), no absolutos | HIGH | ✅ `app-sidebar.tsx` |
+| Sidebar: collapse button consistente (`h-8 w-8 flex items-center justify-center hover:bg-white/10`) | MEDIUM | ✅ `app-sidebar.tsx` |
+| Sidebar: board rows con `title={board.name}` → tooltip nativo | LOW | ✅ `app-sidebar.tsx` |
+| Sidebar: board ⋯ button con `opacity-0 group-hover:opacity-100` (solo visible al hover) | MEDIUM | ✅ `app-sidebar.tsx` |
+| `CreateWorkspaceDialog`: quitar `border border-white/20`, convertir a `<button>` nativo con icono `Plus` | MEDIUM | ✅ `create-workspace-dialog.tsx` |
+| **Visibilidad Gestor**: quitar `UserModel.UserRole.MANAGER` de `is_privileged` en `BoardService.get_detail()` | HIGH | ✅ `services.py` |
+| **Auto-membresía workspace**: `sync_assignments()` añade automáticamente los asignados a `workspace.members` | HIGH | ✅ `services.py` |
+| **Fix comentarios**: `CommentSection` tenía `<form>` anidado dentro del `<form>` de `EditTaskDialog` → HTML descarta el form interno | CRITICAL | ✅ `comment-section.tsx` |
+| `CommentSection`: reemplazar `<form onSubmit>` con `<div>`, botón `type="button"` + `onClick`, Ctrl+Enter shortcut | HIGH | ✅ `comment-section.tsx` |
+| **Email en comentarios**: `CommentService._send_comment_email()` — notifica a asignados + creador al nuevo comentario | HIGH | ✅ `services.py` |
+| **Eliminar Celery del flujo de emails**: `send_assignment_notification.delay()` → llamada directa | CRITICAL | ✅ `signals.py` |
+| `send_task_moved_email.delay()` → llamada directa en `services.py` | CRITICAL | ✅ `services.py` |
+| `send_task_moved_email`: quitar `bind=True, max_retries=3, default_retry_delay=60`, quitar `self.retry()` → `logger.warning()` | HIGH | ✅ `tasks.py` |
+| `send_task_moved_email`: `fail_silently=True` (no crashea si SMTP falla) | MEDIUM | ✅ `tasks.py` |
+
+**Notas técnicas:**
+- HTML no permite `<form>` anidados — el browser descarta el form interno sin error. Síntoma: botón "Enviar" no hace POST al backend.
+- Gestor ahora usa el mismo filtro que colaboradores: `Q(assignee=user) | Q(assignments__user=user) | Q(created_by=user)`.
+- Auto-membresía workspace: cuando un admin asigna una tarea a un gestor/colaborador, ese usuario se añade automáticamente a `workspace.members` via `sync_assignments()`.
+- Celery requiere Redis broker + worker persistente — incompatible con Cloud Run serverless. Todos los emails son ahora SMTP síncronos (Django `send_mail` / `EmailMultiAlternatives`) en el request-response cycle.
+- `CommentService._send_comment_email()`: recipient list = asignados + creador, excluye al comentador. Reply-To via Cloudmailin plus-addressing.
+
+**Revisiones Cloud Run:**
+- Backend: `stward-backend-00032-qgj` → `00033-xcz` → `00034-pff` → `00035-kwn`
+- Frontend: `stward-frontend-00017-hkd` → `00018-4jb`
+
+---
+
 ## 5. DECISIONES ARQUITECTÓNICAS PENDIENTES (ADRs)
 
 ### ADR-001: Estrategia de Autenticación ✅ RESUELTO
@@ -570,6 +604,6 @@ Stward Task es una aplicación Kanban funcional en estado **prototipo** (MVP inc
 
 ---
 
-> **✅ Sprints 0-12 completados y validados. Aplicación en producción (Firebase + Cloud Run + Neon) con Google OAuth2 SSO, allowlist con nombres pre-registrados, identificación de colaboradores con email visible, sistema colaborativo, notificaciones, emails, visibilidad por rol, auto-gestión de tareas vencidas, progreso automático por subtareas y sidebar colapsable.**
+> **✅ Sprints 0-13 completados y validados. Aplicación en producción (Firebase + Cloud Run + Neon) con Google OAuth2 SSO, allowlist con nombres pre-registrados, identificación de colaboradores con email visible, sistema colaborativo, notificaciones, emails síncronos, visibilidad por rol (gestor = igual que colaboradores), auto-gestión de tareas vencidas, progreso automático por subtareas y sidebar colapsable con UX mejorada.**
 >
 > **Regla de documentación:** Cada feature nueva debe actualizar CLAUDE.md (Estado Actual) + SPEC.md (sprint) + MANUAL.md (usuario).

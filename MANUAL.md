@@ -1,5 +1,5 @@
 # Manual de Usuario — Stward Task
-**Versión:** 1.5 · **Idioma:** Español · **Fecha:** Marzo 2026
+**Versión:** 1.6 · **Idioma:** Español · **Fecha:** Marzo 2026
 
 ---
 
@@ -24,7 +24,7 @@
 16. [Preguntas frecuentes](#16-preguntas-frecuentes)
 17. [Inicio de sesión con Google (SSO)](#17-inicio-de-sesión-con-google-sso)
 18. [Control de Acceso (Administradores)](#18-control-de-acceso-administradores)
-19. [Próximas mejoras (Sprint 12)](#19-próximas-mejoras-sprint-12)
+19. [Novedades Sprint 13](#19-novedades-sprint-13)
 
 ---
 
@@ -584,7 +584,7 @@ Cada comentario muestra:
 
 1. En la sección "Comentarios", haz clic en el área de texto: *"Escribe un comentario..."*
 2. Escribe tu mensaje
-3. Haz clic en **"Enviar"**
+3. Haz clic en **"Enviar"** o presiona **Ctrl+Enter** (Cmd+Enter en Mac) para enviar rápidamente
 4. El comentario aparece inmediatamente en la lista
 
 ### 11.3 Comentarios por correo electrónico
@@ -646,10 +646,11 @@ Además de las notificaciones en la aplicación, el sistema envía correos cuand
 
 - Una tarea en la que participas es **movida a otra columna**
 - Eres **asignado** a una tarea
+- Alguien agrega un **nuevo comentario** en una tarea donde participas
 
 Los correos contienen:
 - Nombre de la tarea
-- Columna origen → columna destino
+- Columna origen → columna destino (para correos de movimiento)
 - Porcentaje de progreso
 - Nombre del tablero
 - Enlace directo al tablero
@@ -759,12 +760,13 @@ Progreso Total de "Proyecto Web" = (75 + 100 + 25) / 3 = 67%
 
 ### 14.6 Correos automáticos
 
-Los correos se envían en segundo plano (no bloquean la interfaz):
+Los correos se envían de forma sincrónica junto con la acción (sin cola de espera):
 
 | Evento | Destinatarios |
 |--------|--------------|
 | Tarea movida | Colaboradores + creador (excepto quien movió) |
 | Nueva asignación | El colaborador recién asignado |
+| Nuevo comentario | Colaboradores + creador (excepto quien comentó) |
 
 ---
 
@@ -777,10 +779,10 @@ Stward Task controla qué tareas puede ver cada usuario según su rol en el sist
 | Rol | Qué tareas ve |
 |-----|--------------|
 | **Administrador** | Todas las tareas de todos los tableros |
-| **Manager** | Todas las tareas de todos los tableros |
-| **Usuario regular** | Solo las tareas donde aparece como asignado, colaborador o creador |
+| **Gestor** | Solo las tareas donde aparece como asignado, colaborador o creador |
+| **Desarrollador / Observador** | Solo las tareas donde aparece como asignado, colaborador o creador |
 
-> Un usuario regular no puede ver tareas ajenas aunque estén en el mismo tablero.
+> Un gestor o usuario regular no puede ver tareas ajenas aunque estén en el mismo tablero.
 
 ### 15.2 Acceso a tableros
 
@@ -789,16 +791,20 @@ Todos los miembros de un espacio de trabajo pueden:
 - Crear nuevas tareas
 - Editar y mover tareas (no solo los propietarios del workspace)
 
-### 15.3 ¿Por qué no veo todas las tareas?
+### 15.3 Acceso automático al workspace
 
-Si eres un usuario regular y un tablero parece tener menos tareas de las esperadas, es porque solo ves las tareas que te involucran directamente. Contacta a un administrador para ser asignado a las tareas que necesitas ver.
+Cuando un administrador asigna una tarea a un colaborador o gestor, ese usuario queda automáticamente como miembro del workspace al que pertenece el tablero. No es necesario que el administrador lo agregue manualmente al workspace.
+
+### 15.4 ¿Por qué no veo todas las tareas?
+
+Si eres gestor, desarrollador u observador y un tablero parece tener menos tareas de las esperadas, es porque solo ves las tareas que te involucran directamente. Contacta a un administrador para ser asignado a las tareas que necesitas ver.
 
 ---
 
 ## 16. Preguntas frecuentes
 
 **¿Por qué no veo todas las tareas del tablero?**
-Si tu rol es "usuario regular", solo ves las tareas en las que apareces como asignado, colaborador o creador. Los administradores y managers ven todas las tareas. Ver [sección 15](#15-visibilidad-de-tareas-por-rol).
+Si tu rol es gestor, desarrollador u observador, solo ves las tareas en las que apareces como asignado, colaborador o creador. Solo los administradores ven todas las tareas. Ver [sección 15](#15-visibilidad-de-tareas-por-rol).
 
 **¿Por qué las tareas vencidas aparecen en "Retrasado" sin que yo las haya movido?**
 El sistema las mueve automáticamente cada noche a las 00:05. Cualquier tarea cuya fecha de fin haya pasado y no esté en "Retrasado" o "Completado" se mueve sola. Ver [sección 14.4](#144-tareas-vencidas--movimiento-automático-a-retrasado).
@@ -941,16 +947,20 @@ Para agregar múltiples correos/dominios a la vez:
 
 ---
 
-## 19. Novedades Sprint 12 (2026-03-05)
+## 19. Novedades Sprint 13 (2026-03-06)
 
 Las siguientes mejoras fueron implementadas en esta versión:
 
-- **Identificación mejorada de colaboradores:** En el panel de edición de tarea, cada subtarea muestra el nombre y el correo del colaborador asignado. El selector de asignación también muestra `nombre — email` para facilitar la identificación.
-- **Pre-registro con nombre:** Al agregar un correo al Control de Acceso se puede ingresar el nombre del usuario (formulario individual o columna 3 del CSV). Al hacer su primer login con Google, el perfil queda con nombre visible automáticamente.
-- **Panel lateral colapsable:** Nuevo botón para colapsar/expandir el sidebar y ganar más espacio de trabajo.
-- **CSV flexible:** El importador ahora acepta `,` o `;` como separador y una 3ª columna opcional para el nombre del usuario.
+- **Botones ⋯ siempre accesibles en el sidebar:** Los menús de workspace y tablero ahora son visibles correctamente. El botón del tablero aparece al pasar el cursor (hover). Los botones nunca quedan recortados por el contenedor.
+- **Sidebar: menú Nuevo Espacio de Trabajo mejorado:** El botón ahora tiene un ícono "+" y es visualmente consistente con el resto del footer del sidebar (sin borde).
+- **Visibilidad del rol Gestor corregida:** El gestor ahora ve únicamente las tareas donde está directamente involucrado (asignado, colaborador o creador), igual que un desarrollador. Antes veía todas las tareas como un administrador.
+- **Membresía automática al workspace:** Cuando un administrador asigna una tarea a un colaborador o gestor, ese usuario queda automáticamente como miembro del workspace. No requiere configuración manual.
+- **Comentarios funcionando correctamente:** Se corrigió un bug donde los comentarios escritos en la tarea nunca llegaban al servidor (el botón "Enviar" no realizaba la petición). Ahora los comentarios se guardan y aparecen correctamente.
+- **Ctrl+Enter para enviar comentarios:** Puedes usar Ctrl+Enter (o Cmd+Enter en Mac) como atajo de teclado para enviar un comentario sin usar el mouse.
+- **Notificación por email al comentar:** Cuando alguien escribe un comentario en una tarea, los demás colaboradores y el creador reciben un correo de notificación.
+- **Emails de asignación y movimiento sin cola de espera:** Los correos ahora se envían de forma directa al realizar la acción, sin depender de Celery ni Redis.
 
 ---
 
-*Manual de Stward Task v1.5 · Marzo 2026*
+*Manual de Stward Task v1.6 · Marzo 2026*
 *Dominio: stwards.com · Soporte: contacta al administrador de tu instancia*

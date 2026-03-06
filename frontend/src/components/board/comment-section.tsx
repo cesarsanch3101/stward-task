@@ -26,11 +26,9 @@ export function CommentSection({ taskId }: Props) {
   const createComment = useCreateComment(taskId);
   const [content, setContent] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSend = () => {
     const trimmed = content.trim();
-    if (!trimmed) return;
-
+    if (!trimmed || createComment.isPending) return;
     createComment.mutate(trimmed, {
       onSuccess: () => setContent(""),
     });
@@ -80,23 +78,27 @@ export function CommentSection({ taskId }: Props) {
         )}
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="flex gap-2">
         <Textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Escribe un comentario..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSend();
+          }}
+          placeholder="Escribe un comentario... (Ctrl+Enter para enviar)"
           rows={2}
           className="text-xs resize-none"
         />
         <Button
-          type="submit"
+          type="button"
           size="sm"
           disabled={!content.trim() || createComment.isPending}
           className="self-end"
+          onClick={handleSend}
         >
           {createComment.isPending ? "..." : "Enviar"}
         </Button>
-      </form>
+      </div>
     </div>
   );
 }

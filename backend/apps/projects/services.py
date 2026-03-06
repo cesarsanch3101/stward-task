@@ -105,8 +105,8 @@ class BoardService:
     def get_detail(board_id: UUID, user: User) -> Board:
         """
         Get board with full column/task tree.
-        - Admins / Managers see all tasks.
-        - Other roles see only tasks where they are assignee, collaborator, or creator.
+        - Admins see all tasks.
+        - Managers and other roles see only tasks where they are assignee, collaborator, or creator.
         """
         from django.db.models import Prefetch, Q
         from apps.accounts.models import User as UserModel
@@ -114,7 +114,7 @@ class BoardService:
         is_privileged = (
             user.is_staff
             or user.is_superuser
-            or user.role in (UserModel.UserRole.ADMIN, UserModel.UserRole.MANAGER)
+            or user.role == UserModel.UserRole.ADMIN
         )
 
         tasks_qs = Task.objects.filter(
@@ -329,15 +329,15 @@ class TaskService:
 
     @staticmethod
     def sync_assignments(task: Task, assignee_ids: list[UUID]):
-        """Syncs TaskAssignment records for a task."""
+        """Syncs TaskAssignment records for a task and auto-adds assignees to workspace."""
         import random
         # Signature Monday-like colors
         COLORS = ["#0073ea", "#33d391", "#e2445c", "#ffcb00", "#00a9ff", "#9d50bb", "#ff758c"]
-        
+
         with transaction.atomic():
             # Remove assignments not in the new list
             task.assignments.exclude(user_id__in=assignee_ids).delete()
-            
+
             # Add new assignments
             existing_uids = set(task.assignments.values_list("user_id", flat=True))
             for uid in assignee_ids:
@@ -347,6 +347,11 @@ class TaskService:
                         user_id=uid,
                         user_color=random.choice(COLORS)
                     )
+
+            # Auto-add all assignees to workspace members so they can see the board
+            if assignee_ids:
+                workspace = task.column.board.workspace
+                workspace.members.add(*assignee_ids)
 
     @staticmethod
     def recalculate_parent_progress(subtask: Task) -> None:
@@ -494,14 +499,11 @@ class TaskService:
             NotificationService.create_for_task_move(task, old_column, target_column, user)
             try:
                 from apps.projects.tasks import send_task_moved_email
-                send_task_moved_email.delay(
+                send_task_moved_email(
                     str(task.id), old_column.name, target_column.name, user.email
                 )
             except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning(
-                    "Could not queue task_moved email (no broker): %s", exc
-                )
+                logger.warning("Could not send task_moved email: %s", exc)
 
         return task
 
@@ -523,9 +525,62 @@ class CommentService:
             content=content,
             source=CommentSource.APP,
         )
-        # Notify assignee and creator about the new comment
+        # In-app notifications
         NotificationService.create_for_comment(comment, user)
+        # Outbound email (synchronous, SMTP — no Celery required)
+        try:
+            CommentService._send_comment_email(comment, user)
+        except Exception:
+            logger.warning("Could not send comment email for task %s", task.id)
         return comment
+
+    @staticmethod
+    def _send_comment_email(comment: TaskComment, commenter: User):
+        from django.core.mail import EmailMultiAlternatives
+        from django.conf import settings
+
+        # Re-fetch task with all needed relations to build the email
+        task = Task.objects.select_related(
+            "column__board", "assignee", "created_by"
+        ).prefetch_related("assignments__user").get(id=comment.task_id)
+
+        recipients = set()
+        for assignment in task.assignments.all():
+            if assignment.user.email != commenter.email:
+                recipients.add(assignment.user.email)
+        if task.assignee and task.assignee.email != commenter.email:
+            recipients.add(task.assignee.email)
+        if task.created_by and task.created_by.email != commenter.email:
+            recipients.add(task.created_by.email)
+
+        if not recipients:
+            return
+
+        # Reply-To via Cloudmailin plus-addressing
+        inbound_addr = getattr(settings, "INBOUND_EMAIL_ADDRESS", "")
+        reply_to = None
+        if inbound_addr and "@" in inbound_addr:
+            local, domain = inbound_addr.split("@", 1)
+            reply_to = f"{local}+task-{task.id}@{domain}"
+
+        sender_name = commenter.get_full_name() or commenter.email
+        board_name = task.column.board.name
+        subject = f"[{board_name}] Nuevo comentario: {task.title}"
+        body = (
+            f'{sender_name} comentó en "{task.title}":\n\n'
+            f"{comment.content}\n\n"
+            f"Responde a este email para agregar un comentario a la tarea."
+        )
+
+        for recipient in recipients:
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[recipient],
+                reply_to=[reply_to] if reply_to else [],
+            )
+            msg.send(fail_silently=True)
 
     @staticmethod
     def create_from_email(task: Task, sender_email: str, content: str, author=None) -> TaskComment:
