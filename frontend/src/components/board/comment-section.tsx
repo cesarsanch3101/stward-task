@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mail, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useComments, useCreateComment } from "@/lib/hooks/use-comments";
 
 function formatDateTime(dateStr: string) {
@@ -25,6 +24,12 @@ export function CommentSection({ taskId }: Props) {
   const { data: comments, isLoading } = useComments(taskId);
   const createComment = useCreateComment(taskId);
   const [content, setContent] = useState("");
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll al comentario más reciente cuando carga o llega uno nuevo
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [comments?.length]);
 
   const handleSend = () => {
     const trimmed = content.trim();
@@ -36,15 +41,23 @@ export function CommentSection({ taskId }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <h4 className="text-sm font-semibold text-muted-foreground">
+      <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
         Comentarios
+        {comments && comments.length > 0 && (
+          <span className="text-xs font-normal bg-muted px-1.5 py-0.5 rounded-full">
+            {comments.length}
+          </span>
+        )}
       </h4>
 
-      <ScrollArea className="max-h-48">
+      <div>
         {isLoading ? (
           <p className="text-xs text-muted-foreground py-2">Cargando...</p>
         ) : comments && comments.length > 0 ? (
-          <div className="space-y-2.5 pr-2">
+          <div className="space-y-2.5">
+            <p className="text-[10px] text-muted-foreground text-center pb-1 border-b border-border/30">
+              Inicio del historial
+            </p>
             {comments.map((comment) => (
               <div
                 key={comment.id}
@@ -70,13 +83,14 @@ export function CommentSection({ taskId }: Props) {
                 </p>
               </div>
             ))}
+            <div ref={commentsEndRef} />
           </div>
         ) : (
           <p className="text-xs text-muted-foreground py-2">
             Sin comentarios aún
           </p>
         )}
-      </ScrollArea>
+      </div>
 
       <div className="flex gap-2">
         <Textarea
