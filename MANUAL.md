@@ -1,5 +1,5 @@
 # Manual de Usuario — Stward Task
-**Versión:** 1.6 · **Idioma:** Español · **Fecha:** Marzo 2026
+**Versión:** 1.8 · **Idioma:** Español · **Fecha:** Marzo 2026
 
 ---
 
@@ -25,6 +25,8 @@
 17. [Inicio de sesión con Google (SSO)](#17-inicio-de-sesión-con-google-sso)
 18. [Control de Acceso (Administradores)](#18-control-de-acceso-administradores)
 19. [Novedades Sprint 13](#19-novedades-sprint-13)
+20. [Novedades — Restricciones rol Desarrollador](#20-novedades--restricciones-rol-desarrollador-2026-03-06)
+21. [Novedades — Sprint 14: Permisos Kanban/Tabla + Polling](#21-novedades--sprint-14-permisos-kanbantabla--polling-2026-03-06)
 
 ---
 
@@ -802,7 +804,7 @@ Cuando un usuario con rol **Desarrollador** (u **Observador**) abre el diálogo 
 
 - Todos los campos (título, descripción, fechas, prioridad) son **solo visualización** — no se pueden modificar.
 - Los **colaboradores asignados** se muestran pero no se pueden cambiar.
-- La **tarea padre** y las **dependencias** son visibles pero no modificables.
+- Las **dependencias** son visibles pero no modificables.
 - Las **subtareas** se muestran con su estado y asignado, pero no se puede cambiar el estado, reordenar, editar ni eliminar.
 - Las **barras de progreso** (individual y general) son visibles pero no arrastrables.
 - Los botones **"Eliminar"** y **"Guardar cambios"** no aparecen.

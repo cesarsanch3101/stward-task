@@ -239,6 +239,7 @@ Restringir las acciones de movimiento y edición en el Kanban y la Vista Tabla e
 | `frontend/src/lib/hooks/use-board.ts` | `refetchInterval: 30_000` añadido a `useBoard()` |
 | `frontend/src/lib/hooks/use-workspace-detail.ts` | `refetchInterval: 30_000` añadido a `useQueries` de boards |
 | `frontend/src/components/board/edit-task-dialog.tsx` | Eliminada sección "Tarea Padre (Hito/Grupo)" (Controller + Select con `parent_id`) |
+| `frontend/src/components/board/edit-task-dialog.tsx` | Título subtarea: `truncate` → `break-words min-w-0`; asignado movido a fila separada (`pl-6`, avatar `h-4 w-4`, `text-[11px]`); botones edit/delete solos en fila del título con `items-start` |
 
 ### Resumen de permisos
 
