@@ -10,33 +10,60 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def send_assignment_notification(assignment_id):
-    """Sends an email notification to the assigned user."""
+    """Sends an HTML email notification to the assigned user."""
     try:
-        assignment = TaskAssignment.objects.select_related('task', 'task__column__board', 'user').get(id=assignment_id)
+        assignment = TaskAssignment.objects.select_related(
+            'task', 'task__column__board', 'user'
+        ).get(id=assignment_id)
         task = assignment.task
         user = assignment.user
-        
+
+        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        task_url = f"{frontend_url}/board/{task.column.board.id}" if frontend_url else ""
+
+        inbound_addr = getattr(settings, "INBOUND_EMAIL_ADDRESS", "")
+        reply_to = None
+        if inbound_addr and "@" in inbound_addr:
+            local, domain = inbound_addr.split("@", 1)
+            reply_to = f"{local}+task-{task.id}@{domain}"
+
+        end_date_str = task.end_date.strftime("%d/%m/%Y") if task.end_date else None
+        nombre = user.first_name or user.email
+
         subject = f"Nueva tarea asignada: {task.title}"
-        # We can expand this with HTML templates later
-        message = (
-            f"Hola {user.first_name or user.email},\n\n"
+        plain_body = (
+            f"Hola {nombre},\n\n"
             f"Te han asignado a la tarea '{task.title}' en el tablero '{task.column.board.name}'.\n\n"
-            f"Color asignado: {assignment.user_color}\n\n"
-            f"¡Buen trabajo!"
         )
-        
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            fail_silently=False,
+        if end_date_str:
+            plain_body += f"Fecha límite: {end_date_str}\n\n"
+        if task_url:
+            plain_body += f"Ver tarea: {task_url}\n\n"
+        plain_body += "¡Buen trabajo!"
+
+        context = {
+            "user": user,
+            "task": task,
+            "board_name": task.column.board.name,
+            "task_url": task_url,
+            "end_date": end_date_str,
+        }
+        html_body = render_to_string("projects/email/assignment_notification.html", context)
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=plain_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+            reply_to=[reply_to] if reply_to else [],
         )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=True)
+
     except TaskAssignment.DoesNotExist:
         pass
-    except Exception as e:
-        # In production this should be logged properly
-        print(f"Error sending email: {e}")
+    except Exception as exc:
+        logger.warning("send_assignment_notification failed: %s", exc)
 
 
 @shared_task
@@ -74,7 +101,7 @@ def send_task_moved_email(task_id, old_column_name, new_column_name, mover_email
             reply_to = None
 
         frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
-        task_url = f"{frontend_url}/boards/{task.column.board.id}" if frontend_url else ""
+        task_url = f"{frontend_url}/board/{task.column.board.id}" if frontend_url else ""
 
         context = {
             "task": task,

@@ -74,3 +74,23 @@ class AllowedEmailCreateSchema(Schema):
 class AllowedEmailUpdateSchema(Schema):
     role: str | None = Field(None, max_length=20)
     name: str | None = Field(None, max_length=255)
+
+
+# ─────────────────────────────────────────────────
+# Admin User Management
+# ─────────────────────────────────────────────────
+
+class AdminUserSchema(Schema):
+    id: str
+    email: str
+    first_name: str
+    last_name: str
+    role: str
+    is_active: bool
+    has_password: bool
+    has_google: bool
+    created_at: datetime
+
+
+class SetPasswordSchema(Schema):
+    password: str = Field(..., min_length=8, max_length=128)

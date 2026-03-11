@@ -95,6 +95,11 @@ def inbound_email(request):
 
     if author:
         NotificationService.create_for_comment(comment, author)
+        try:
+            from .services import CommentService
+            CommentService._send_comment_email(comment, author)
+        except Exception:
+            logger.warning("Could not send comment email for task %s", task_id)
 
     logger.info("Inbound email: comment created for task %s from %s", task_id, sender)
     return {"status": "ok", "comment_id": str(comment.id)}

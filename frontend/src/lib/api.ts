@@ -1,5 +1,6 @@
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./auth";
 import {
+  AdminUser,
   AllowedEmail,
   Board,
   BoardSummary,
@@ -215,6 +216,26 @@ export function bulkCreateAllowedEmails(
   return fetcher<AllowedEmail[]>("/auth/allowed-emails/bulk", {
     method: "POST",
     body: JSON.stringify(entries),
+  });
+}
+
+// ─── Admin User Management ────────────────────────
+export function getAdminUsers() {
+  return fetcher<AdminUser[]>("/auth/admin/users");
+}
+
+export function activateUser(userId: string) {
+  return fetchNoContent(`/auth/admin/users/${userId}/activate`, { method: "PATCH" });
+}
+
+export function deactivateUser(userId: string) {
+  return fetchNoContent(`/auth/admin/users/${userId}/deactivate`, { method: "PATCH" });
+}
+
+export function setUserPassword(userId: string, password: string) {
+  return fetchNoContent(`/auth/admin/users/${userId}/set-password`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
   });
 }
 

@@ -558,7 +558,13 @@ El sistema asigna automáticamente un color de Monday.com a cada colaborador:
 
 ### 10.4 Notificaciones de asignación
 
-Cuando un colaborador es asignado a una tarea, recibe automáticamente un correo de notificación con el nombre de la tarea y el tablero.
+Cuando un colaborador es asignado a una tarea, recibe automáticamente un correo de notificación HTML con:
+- **Nombre de la tarea** y el tablero al que pertenece
+- **Fecha límite** (si está configurada) — resaltada con badge naranja
+- **Botón "Ver tarea"** — link directo al tablero en la aplicación
+- **Descripción** (si existe) — primeros 200 caracteres
+
+> Puedes responder al correo de asignación para agregar un comentario directamente a la tarea.
 
 ---
 
@@ -587,14 +593,16 @@ Cada comentario muestra:
 
 ### 11.3 Comentarios por correo electrónico
 
-Si tienes configurada la integración de correo entrante (Cloudmailin o SendGrid):
+Todos los correos del sistema (asignación, movimiento, comentario) incluyen una dirección **Reply-To** especial vinculada a la tarea.
 
-1. Cuando se mueve una tarea, los involucrados reciben un email de notificación
-2. El email incluye una dirección **Reply-To** especial: `task-{id}@reply.stwards.com`
-3. Al responder ese email, tu respuesta se convierte automáticamente en un comentario de la tarea
-4. El comentario aparece marcado con el ícono de correo (ámbar)
+**Cómo funciona:**
+1. Recibes un correo sobre una tarea (asignación, movimiento o nuevo comentario)
+2. Respondes directamente desde tu cliente de correo
+3. Tu respuesta se convierte automáticamente en un comentario de la tarea
+4. **Todos los demás participantes** (asignados + creador, excepto el comentador) reciben notificación del nuevo comentario
+5. El comentario aparece en la app marcado con ícono de correo (ámbar)
 
-> Esta función requiere configuración del proveedor de correo entrante en el servidor.
+> La integración está activa con Cloudmailin. No requiere configuración adicional para usuarios finales.
 
 ---
 
@@ -962,6 +970,50 @@ Para agregar múltiples correos/dominios a la vez:
 |--------|-------------|
 | **Pendiente** | El correo/dominio está en la lista pero nadie se ha registrado aún |
 | **Activo** | Al menos un usuario se ha registrado usando esta entrada |
+
+### 18.8 Gestión de Usuarios registrados (pestaña "Usuarios")
+
+La segunda pestaña del panel, **"Usuarios"**, muestra todos los usuarios que ya se han registrado en el sistema.
+
+#### Ver usuarios
+
+La tabla muestra para cada usuario:
+- **Nombre / Email** — nombre completo si está configurado, email abajo como subtítulo
+- **Rol** — badge de color según el rol asignado
+- **Método** — cómo puede iniciar sesión: `Google` (badge azul) y/o `Email` (badge gris)
+- **Estado** — `Activo` (verde) o `Bloqueado` (rojo)
+
+#### Bloquear un usuario
+
+Si necesitas impedir que un usuario acceda temporalmente:
+
+1. Haz clic en el ícono de **UserX** (🚫) al final de la fila
+2. Aparecerá una confirmación inline: **"Confirmar ✓ ✕"**
+3. Haz clic en ✓ para confirmar — el usuario queda bloqueado inmediatamente
+
+> **Nota:** Al intentar hacer login, el usuario verá el mensaje "Cuenta desactivada."
+
+#### Desbloquear un usuario
+
+Si el usuario está bloqueado:
+
+1. Haz clic en el ícono de **UserCheck** (✔) al final de la fila
+2. El usuario queda desbloqueado sin confirmación adicional
+
+> **Nota:** Un administrador no puede bloquear su propia cuenta.
+
+#### Asignar contraseña
+
+Si un usuario no puede entrar con Google (por ejemplo, su cuenta de Google no está disponible), puedes asignarle una contraseña para que inicie sesión con email + contraseña:
+
+1. Haz clic en el ícono de **candado** 🔒 al final de la fila del usuario
+2. En el modal que aparece:
+   - Escribe la nueva contraseña (mínimo 8 caracteres)
+   - Repite la contraseña en el campo "Confirmar contraseña"
+3. El botón **"Guardar"** se habilita solo cuando ambas contraseñas coinciden y tienen 8+ caracteres
+4. Haz clic en **"Guardar"**
+
+Una vez asignada la contraseña, el usuario puede hacer login desde la pantalla de inicio con su email y la nueva contraseña.
 
 ---
 

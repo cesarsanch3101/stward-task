@@ -100,15 +100,15 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 gcloud run services logs read stward-frontend --region us-central1 --project stward-task-1cbf3 --limit 50
 ```
 
-### Estado del deploy (2026-03-06)
+### Estado del deploy (2026-03-11)
 - ✅ Frontend SSR en Cloud Run (`stward-frontend` rev `00011-ctb`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
-- ✅ Backend en Cloud Run (`stward-backend` rev `00035-kwn`), ✅ Neon DB conectada
+- ✅ Backend en Cloud Run (`stward-backend` rev `00041-wlh`), ✅ Neon DB conectada
 - ✅ Login funcionando — admin@stwards.com / admin123
-- ✅ Sprint 13 desplegado en producción: sidebar UX, visibilidad gestor, comentarios fix, emails síncronos
-- ✅ Restricciones rol Desarrollador desplegadas — `stward-frontend-00019-79h` (solo lectura + comentarios)
-- ✅ Sprint 14 desplegado — `stward-frontend-00020-ql2`: permisos Kanban/Tabla (solo admin), polling 30s, selector Tarea Padre eliminado
-- ✅ Fix UX subtareas — `stward-frontend-00021-4k4`: título con `break-words` (sin truncar), asignado en fila separada debajo del título
-- ✅ Sidebar `w-72` (288px) + sin auto-colapso al navegar entre workspaces
+- ✅ Sprint 15 desplegado: Tab "Usuarios" en Control de Acceso (bloquear/desbloquear + asignar contraseña)
+- ✅ Sprint 15b: Email asignación HTML (fecha límite + link app) + fix URL `/boards/` → `/board/`
+- ✅ Sprint 15c: Filtro colaboradores `@stwards.com` + propagación email en respuesta inbound + bug fix template location
+- ✅ Pre-creación masiva: 109 usuarios de la allowlist creados vía management command `precreate_allowlist_users`
+- ✅ Google OAuth restaurado (client ID: `997565014222-n7sv0q8tlo30kslbq5fkbgbu0egtaskr`)
 - ✅ Email outbound activo — `noreply@stwards.com` (alias de `screen@stwards.com`) vía SMTP Gmail
 - ✅ Email inbound activo — Cloudmailin free tier, webhook `/api/v1/webhooks/inbound-email`
 - ✅ Emails 100% síncronos (sin Celery/Redis): asignación, movimiento, comentario
@@ -255,6 +255,51 @@ Restringir las acciones de movimiento y edición en el Kanban y la Vista Tabla e
 
 ---
 
+## Sprint 15 — COMPLETADO: Gestión de Usuarios (Desbloquear + Asignar Contraseña)
+
+### Objetivo
+Agregar una segunda pestaña "Usuarios" en el módulo Control de Acceso (`/admin/users`) que muestre todos los usuarios registrados, permita bloquear/desbloquear cuentas (`is_active`) y asignar contraseñas manualmente.
+
+### Cambios realizados
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/apps/accounts/schemas.py` | `AdminUserSchema` (id, email, name, role, is_active, has_password, has_google, created_at) + `SetPasswordSchema` (min_length=8) |
+| `backend/apps/accounts/api.py` | 4 endpoints: `GET /admin/users`, `PATCH /admin/users/{id}/activate`, `PATCH /admin/users/{id}/deactivate`, `POST /admin/users/{id}/set-password` |
+| `frontend/src/lib/types.ts` | Interfaz `AdminUser` |
+| `frontend/src/lib/api.ts` | `getAdminUsers()`, `activateUser()`, `deactivateUser()`, `setUserPassword()` |
+| `frontend/src/app/(auth)/admin/users/page.tsx` | Tabs UI ("Lista de Acceso" + "Usuarios") + tabla usuarios + Dialog contraseña |
+
+---
+
+## Sprint 15b — COMPLETADO: Mejoras Email Asignación (fecha límite + link + HTML)
+
+### Cambios realizados
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/apps/projects/tasks.py` | `send_assignment_notification` reescrito: HTML template, `end_date`, link a la app, Reply-To Cloudmailin |
+| `backend/apps/projects/templates/projects/email/assignment_notification.html` | Nuevo template HTML (estilo igual a `task_moved.html`) con badge fecha límite naranja |
+| `backend/apps/projects/tasks.py` | Fix URL `/boards/` → `/board/` en `send_task_moved_email` |
+
+---
+
+## Sprint 15c — COMPLETADO: Filtro Colaboradores @stwards.com + Propagación Email Inbound + Precreación Usuarios
+
+### Cambios realizados
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/apps/projects/api.py` | `list_all_users`: añadido `email__endswith="@stwards.com"` — selector colaboradores solo muestra usuarios del dominio |
+| `backend/apps/projects/webhooks.py` | Inbound webhook ahora llama `CommentService._send_comment_email()` al crear comentario vía email — propaga la respuesta a todos los participantes |
+| `backend/apps/accounts/management/commands/precreate_allowlist_users.py` | Nuevo management command: crea cuentas `User` para todas las entradas pendientes de la allowlist (ran en producción: 109 usuarios creados) |
+
+### Bug fix crítico
+**Template `assignment_notification.html` estaba en `backend/templates/` (raíz)** → Django con `APP_DIRS: True` y `DIRS: []` no lo encontraba → `TemplateDoesNotExist` silencioso → correos de asignación no llegaban.
+**Fix:** mover template a `backend/apps/projects/templates/projects/email/` (igual que `task_moved.html`).
+
+---
+
 ## Email Configuration (ACTIVO)
 - **Proveedor outbound:** Google Workspace SMTP — `screen@stwards.com` autentica, `noreply@stwards.com` es alias
 - **Envío:** `smtp.gmail.com:587` con App Password (16 chars) de `screen@stwards.com`
@@ -296,6 +341,9 @@ Restringir las acciones de movimiento y edición en el Kanban y la Vista Tabla e
 | Sprint 13 | Sidebar UX (flex-sibling) + Visibilidad Gestor + Fix Comentarios + Emails Síncronos | ✅ COMPLETADO |
 | Sprint 13+ | Restricciones UI rol Desarrollador en EditTaskDialog (solo lectura + comentarios) | ✅ COMPLETADO |
 | Sprint 14 | Permisos Kanban/Tabla + Polling 30s + Eliminar selector Tarea Padre | ✅ COMPLETADO |
+| Sprint 15 | Gestión de Usuarios: Desbloquear/Bloquear + Asignar Contraseña en Control de Acceso | ✅ COMPLETADO |
+| Sprint 15b | Email asignación HTML (fecha límite + link app) + fix URL `/boards/` → `/board/` | ✅ COMPLETADO |
+| Sprint 15c | Filtro colaboradores `@stwards.com` + propagación email inbound + precreación 109 usuarios | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -309,7 +357,7 @@ Restringir las acciones de movimiento y edición en el Kanban y la Vista Tabla e
 - **Notificaciones in-app:** Campana en sidebar con badge, polling 30s, tipos: assigned/moved/comment/completed
 - **Emails outbound:** Celery + SMTP (Gmail Workspace), template HTML `task_moved.html`, `send_task_moved_email` + `send_assignment_notification`
 - **Inbound email:** Webhook `POST /api/v1/webhooks/inbound-email` — reply al email crea comentario en la tarea. Reply-To usa Cloudmailin plus-addressing: `cca91010c6927746fa43+task-{uuid}@cloudmailin.net`. Acepta JSON Normalized de Cloudmailin.
-- **Todos los usuarios en asignaciones:** `GET /api/v1/users` retorna todos los usuarios activos. Hook `useUsers()` con stale 5min. El selector en crear/editar tarea muestra todos los usuarios del sistema (no solo del workspace).
+- **Colaboradores filtrados por dominio (Sprint 15c):** `GET /api/v1/users` filtra `email__endswith="@stwards.com"` → el selector de asignados/colaboradores solo muestra usuarios del dominio corporativo.
 - **Visibilidad por rol:** Admin/Manager/Staff ven todas las tareas del tablero. Usuarios regulares ven solo las tareas donde son `assignee`, colaborador (`TaskAssignment`) o `created_by`. Implementado con `Prefetch` filtrado en `BoardService.get_detail()`.
 - **Permisos de workspace:** Todos los miembros del workspace (no solo el owner) pueden crear, editar y mover tareas. `Q(owner=user) | Q(members=user)` + `.distinct()` en `TaskService`.
 - **Bloqueo de avance por padre/dependencias:** Al mover una tarea hacia adelante (columna con `order` mayor), `TaskService.move()` valida: (1) si tiene tarea padre, el padre debe tener `progress >= 100`; (2) si tiene dependencias, todas deben tener `progress >= 100`. Mover hacia atrás no está bloqueado.
@@ -340,6 +388,7 @@ Restringir las acciones de movimiento y edición en el Kanban y la Vista Tabla e
 - **Polling multi-usuario:** `refetchInterval: 30_000` en `useBoard()` y en `useQueries` de `useWorkspaceDetail`. Pausa automáticamente cuando la pestaña está en segundo plano (`refetchIntervalInBackground: false` es el default de TanStack Query).
 - **Selector Tarea Padre eliminado:** El `<Controller name="parent_id">` con `<Select>` fue eliminado del `EditTaskDialog`. El campo `parent_id` permanece en el backend (modelos, schemas, `recalculate_parent_progress`) y en `defaultValues` del form — la lógica de subtareas sigue intacta.
 - **Subtarea título wrap (Sprint 14+):** Cambiado de `truncate` a `break-words min-w-0` en el span del título. El asignado se movió de la misma fila a una fila separada debajo (`pl-6`, avatar `h-4 w-4`, nombre en `text-[11px] text-muted-foreground truncate`). Los botones de editar/eliminar quedaron solos en el extremo derecho de la fila del título. Fila del título usa `items-start` para alinear al tope cuando el título tiene varias líneas.
+- **Gestión de usuarios Admin (Sprint 15):** Segunda pestaña "Usuarios" en `/admin/users`. Tabla con nombre/email, rol, método de login (Google/Email), estado (Activo/Bloqueado) y acciones. Botón desbloquear/bloquear con confirmación inline. Modal "Asignar Contraseña" con validación min 8 chars + confirmación. Backend: `GET/PATCH/POST /auth/admin/users` con `AdminUserSchema` + `SetPasswordSchema`. Admin no puede desactivar su propia cuenta (backend devuelve 400).
 - **Vistas:** Kanban, Tabla, Dashboard (KPIs + panel Carga del Equipo), Gantt, Dashboard Workspace, Gantt Workspace
 - **CI/CD:** GitHub Actions (7 jobs: lint → test → build → E2E → SBOM → security scan)
 - **Tests:** 56 backend (pytest, 88% cov) + 18 frontend (Vitest + RTL) + Playwright E2E
@@ -404,6 +453,11 @@ Restringir las acciones de movimiento y edición en el Kanban y la Vista Tabla e
 - **Auto-membresía workspace**: cuando se asigna una tarea, `sync_assignments()` llama `workspace.members.add(*assignee_ids)`. Sin esto, el gestor o colaborador asignado no puede ver el workspace (lo filtra el queryset `Q(owner=user) | Q(members=user)`).
 - **Emails síncronos (Sprint 13)**: `send_assignment_notification()` y `send_task_moved_email()` se llaman directamente (sin `.delay()`). La anotación `@shared_task` se conserva pero no se usa en Cloud Run. En local, Celery seguiría funcionando si estuviera corriendo. `fail_silently=True` en todos los envíos de email para no crashear si SMTP falla.
 - **`CommentService._send_comment_email()`**: método estático en `services.py`. Re-fetchea la tarea con `select_related('column__board', 'assignee')` + `prefetch_related('assignments__user')`. Recipients = assignees + creador, excluye al comentador. Reply-To via Cloudmailin plus-addressing. Llamada en try/except — si falla no bloquea la creación del comentario.
+- **Django TEMPLATES `DIRS: []` + `APP_DIRS: True` (CRÍTICO)**: Con esta config, Django solo busca templates dentro de `<app>/templates/`. Un template en `backend/templates/` (raíz) lanza `TemplateDoesNotExist` silencioso. Siempre colocar templates de email en `backend/apps/projects/templates/projects/email/`.
+- **Inbound email → propagación (Sprint 15c)**: `webhooks.py` ahora llama `CommentService._send_comment_email(comment, author)` después de crear el comentario por email, igual que `CommentService.create()`. Solo cuando `author` es usuario registrado.
+- **Precreación masiva de usuarios**: `python manage.py precreate_allowlist_users` — crea cuentas `User` para todas las entradas pendientes (`used_at__isnull=True`) de `AllowedEmail`. Ran en producción vía Cloud Run job: 109 usuarios creados.
+- **Gestión de usuarios Admin (Sprint 15)**: endpoints `GET /auth/admin/users`, `PATCH /auth/admin/users/{id}/activate|deactivate`, `POST /auth/admin/users/{id}/set-password`. `AdminUserSchema` expone `has_password = user.has_usable_password()`, `has_google = user.google_id is not None`. Admin no puede desactivar su propia cuenta.
+- **`(auth)` path Write tool bug**: VSCode extension no persiste archivos escritos con Write tool a rutas con `(auth)` en el path. Workaround: escribir script Python temporal a ruta normal, ejecutar, eliminar.
 
 ### Regla de documentación (OBLIGATORIA)
 > Cada vez que se agregue una funcionalidad nueva, se deben actualizar:

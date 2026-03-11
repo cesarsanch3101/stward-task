@@ -6,6 +6,7 @@ import logging
 
 import jwt
 from django.contrib.auth import authenticate
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from ninja import Router
 from ninja.errors import HttpError
@@ -13,6 +14,7 @@ from ninja.errors import HttpError
 from .auth import create_token_pair, decode_token, jwt_auth, verify_google_token
 from .models import AllowedEmail, User
 from .schemas import (
+    AdminUserSchema,
     AllowedEmailCreateSchema,
     AllowedEmailSchema,
     AllowedEmailUpdateSchema,
@@ -21,6 +23,7 @@ from .schemas import (
     LoginSchema,
     RefreshSchema,
     RegisterSchema,
+    SetPasswordSchema,
     TokenResponseSchema,
     UserSchema,
 )
@@ -326,3 +329,78 @@ def delete_allowed_email(request, entry_id: int):
         return 204, None
     except AllowedEmail.DoesNotExist:
         return 404, {"detail": "Entrada no encontrada."}
+
+
+# ─────────────────────────────────────────────────
+# Admin User Management (admin only)
+# NOTE: /admin/users (literal) must be declared BEFORE /admin/users/{user_id}/...
+# ─────────────────────────────────────────────────
+
+@router.get(
+    "/admin/users",
+    response=list[AdminUserSchema],
+    auth=jwt_auth,
+)
+def list_admin_users(request):
+    """List all registered users with status info. Admin only."""
+    _require_admin(request.auth)
+    users = User.objects.all().order_by("email")
+    return [
+        {
+            "id": str(u.id),
+            "email": u.email,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "role": u.role,
+            "is_active": u.is_active,
+            "has_password": u.has_usable_password(),
+            "has_google": u.google_id is not None,
+            "created_at": u.created_at,
+        }
+        for u in users
+    ]
+
+
+@router.patch(
+    "/admin/users/{user_id}/activate",
+    response={200: dict, 404: ErrorSchema},
+    auth=jwt_auth,
+)
+def activate_user(request, user_id: str):
+    """Re-activate a blocked user account. Admin only."""
+    _require_admin(request.auth)
+    user = get_object_or_404(User, id=user_id)
+    User.objects.filter(pk=user.pk).update(is_active=True)
+    logger.info("User activated by %s: %s", request.auth.email, user.email)
+    return 200, {"ok": True}
+
+
+@router.patch(
+    "/admin/users/{user_id}/deactivate",
+    response={200: dict, 400: ErrorSchema, 404: ErrorSchema},
+    auth=jwt_auth,
+)
+def deactivate_user(request, user_id: str):
+    """Block a user account. Admin only. Cannot deactivate own account."""
+    _require_admin(request.auth)
+    if str(request.auth.id) == user_id:
+        return 400, {"detail": "No puedes desactivar tu propia cuenta."}
+    user = get_object_or_404(User, id=user_id)
+    User.objects.filter(pk=user.pk).update(is_active=False)
+    logger.info("User deactivated by %s: %s", request.auth.email, user.email)
+    return 200, {"ok": True}
+
+
+@router.post(
+    "/admin/users/{user_id}/set-password",
+    response={200: dict, 400: ErrorSchema, 404: ErrorSchema},
+    auth=jwt_auth,
+)
+def set_user_password(request, user_id: str, payload: SetPasswordSchema):
+    """Set a new password for a user. Admin only."""
+    _require_admin(request.auth)
+    user = get_object_or_404(User, id=user_id)
+    user.set_password(payload.password)
+    user.save(update_fields=["password"])
+    logger.info("Password set by admin %s for user: %s", request.auth.email, user.email)
+    return 200, {"ok": True}

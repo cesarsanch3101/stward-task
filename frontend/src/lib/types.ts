@@ -21,6 +21,18 @@ export interface AllowedEmail {
   created_at: string;
 }
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: UserRole;
+  is_active: boolean;
+  has_password: boolean;
+  has_google: boolean;
+  created_at: string;
+}
+
 export interface TaskAssignment {
   id: string;
   user: User;

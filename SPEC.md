@@ -606,6 +606,64 @@ Limitar acciones destructivas/de edición en Kanban y Tabla exclusivamente al Ad
 
 ---
 
+## Sprint 15 — COMPLETADO: Gestión de Usuarios (Desbloquear + Asignar Contraseña)
+
+### Objetivo
+Agregar una segunda pestaña "Usuarios" en el módulo Control de Acceso (`/admin/users`) que muestre todos los usuarios registrados, permita bloquear/desbloquear cuentas (`is_active`) y asignar contraseñas manualmente (para usuarios que no pueden entrar con Google).
+
+**Caso real que originó esta feature:** Un usuario tenía su email con typo en la allowlist (`stwtards.com` vs `stwards.com`). Sin una UI de gestión, hubo que hacer operaciones manuales complejas.
+
+### Tareas
+
+| Tarea | Prioridad | Estado |
+|-------|-----------|--------|
+| `accounts/schemas.py`: `AdminUserSchema` + `SetPasswordSchema` | HIGH | ✅ |
+| `accounts/api.py`: 4 endpoints `GET/PATCH/POST /auth/admin/users` | HIGH | ✅ |
+| `frontend/types.ts`: interfaz `AdminUser` | HIGH | ✅ |
+| `frontend/api.ts`: `getAdminUsers`, `activateUser`, `deactivateUser`, `setUserPassword` | HIGH | ✅ |
+| `admin/users/page.tsx`: Tabs UI + pestaña "Usuarios" con tabla + Dialog contraseña | HIGH | ✅ |
+
+### Notas
+- Django Ninja route ordering: `/admin/users` (literal) declarado ANTES de `/admin/users/{user_id}/...` (parameterizado).
+- `has_usable_password()` indica si el usuario tiene contraseña configurada.
+- `has_google: bool = u.google_id is not None` — método de login visible en la UI.
+- `confirmDeactivateId`: confirmación inline antes de bloquear (protege contra clics accidentales).
+- Dialog contraseña: validación min 8 chars + confirmación coincide antes de habilitar "Guardar".
+- Admin no puede desactivar su propia cuenta (backend devuelve 400).
+
+---
+
+## Sprint 15b — COMPLETADO: Email Asignación HTML + Fix URL
+
+### Objetivo
+Mejorar el correo de asignación de tareas para incluir fecha límite y link directo a la app. Corregir bug de URL en correo de movimiento.
+
+### Tareas
+
+| Tarea | Estado |
+|-------|--------|
+| `tasks.py`: `send_assignment_notification` → HTML con `EmailMultiAlternatives`, `end_date`, `task_url`, Reply-To | ✅ |
+| `apps/projects/templates/projects/email/assignment_notification.html`: nuevo template HTML | ✅ |
+| `tasks.py`: Fix `/boards/` → `/board/` en `send_task_moved_email` | ✅ |
+| Bug fix: mover template de `backend/templates/` a `apps/projects/templates/` (ubicación correcta para `APP_DIRS`) | ✅ |
+
+---
+
+## Sprint 15c — COMPLETADO: Filtro Dominio + Propagación Email Inbound + Precreación Usuarios
+
+### Objetivo
+Restringir el selector de colaboradores a usuarios `@stwards.com`. Propagar notificaciones por correo cuando alguien responde desde el email. Pre-crear las 109 cuentas pendientes de la allowlist.
+
+### Tareas
+
+| Tarea | Estado |
+|-------|--------|
+| `api.py`: `list_all_users` filtra `email__endswith="@stwards.com"` | ✅ |
+| `webhooks.py`: inbound webhook llama `CommentService._send_comment_email()` al crear comentario | ✅ |
+| `management/commands/precreate_allowlist_users.py`: comando para pre-crear usuarios allowlist | ✅ |
+
+---
+
 ## 5. DECISIONES ARQUITECTÓNICAS PENDIENTES (ADRs)
 
 ### ADR-001: Estrategia de Autenticación ✅ RESUELTO

@@ -3,15 +3,23 @@
 import { useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Shield, Globe, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, Upload, Shield, Globe, Pencil, Check, X, Lock, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import * as api from "@/lib/api";
 import { useCurrentUser } from "@/lib/hooks/use-auth";
-import type { AllowedEmail, UserRole } from "@/lib/types";
+import type { AdminUser, AllowedEmail, UserRole } from "@/lib/types";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   administrador: "Administrador",
@@ -42,9 +50,20 @@ export default function AdminUsersPage() {
   const [editRole, setEditRole] = useState<UserRole>("desarrollador");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
+  const [passwordModal, setPasswordModal] = useState<{ userId: string; userName: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["allowed-emails"],
     queryFn: api.getAllowedEmails,
+    enabled: currentUser?.role === "administrador",
+  });
+
+  const { data: adminUsers = [], isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: api.getAdminUsers,
     enabled: currentUser?.role === "administrador",
   });
 
@@ -77,7 +96,7 @@ export default function AdminUsersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { role: string; name: string | null } }) =>
+    mutationFn: ({ id, data }: { id: number; data: { role: string; name?: string } }) =>
       api.updateAllowedEmail(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allowed-emails"] });
@@ -101,6 +120,44 @@ export default function AdminUsersPage() {
         toast.error(err.message || "Error al importar CSV");
       }
     },
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (userId: string) => api.activateUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Usuario desbloqueado");
+    },
+    onError: () => toast.error("Error al desbloquear usuario"),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (userId: string) => api.deactivateUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setConfirmDeactivateId(null);
+      toast.success("Usuario bloqueado");
+    },
+    onError: (err: Error) => {
+      try {
+        const parsed = JSON.parse(err.message.replace(/^API \d+: /, ""));
+        toast.error(parsed.detail ?? "Error al bloquear usuario");
+      } catch {
+        toast.error("Error al bloquear usuario");
+      }
+    },
+  });
+
+  const setPasswordMutation = useMutation({
+    mutationFn: ({ userId, password }: { userId: string; password: string }) =>
+      api.setUserPassword(userId, password),
+    onSuccess: () => {
+      setPasswordModal(null);
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Contraseña establecida correctamente");
+    },
+    onError: () => toast.error("Error al establecer contraseña"),
   });
 
   function startEdit(entry: AllowedEmail) {
@@ -162,6 +219,19 @@ export default function AdminUsersPage() {
     e.target.value = "";
   }
 
+  function handleSetPassword() {
+    if (!passwordModal) return;
+    if (newPassword.length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+    setPasswordMutation.mutate({ userId: passwordModal.userId, password: newPassword });
+  }
+
   if (currentUser?.role !== "administrador") {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
@@ -177,12 +247,19 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-lg font-bold">Control de Acceso</h1>
           <p className="text-sm text-muted-foreground">
-            Define quién puede ingresar con Google y qué rol tendrá al registrarse.
+            Gestiona quién puede acceder y administra las cuentas de usuario.
           </p>
         </div>
       </div>
 
-      {/* Formulario de alta */}
+      <Tabs defaultValue="allowlist">
+        <TabsList className="mb-4">
+          <TabsTrigger value="allowlist">Lista de Acceso</TabsTrigger>
+          <TabsTrigger value="users">Usuarios ({adminUsers.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="allowlist" className="space-y-6 mt-0">
+          {/* Formulario de alta */}
       <Card className="shadow-none border border-border/50">
         <CardHeader>
           <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
@@ -458,6 +535,191 @@ export default function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </TabsContent>
+
+    <TabsContent value="users" className="mt-0">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Usuarios Registrados</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoadingUsers ? (
+            <div className="p-6 text-center text-muted-foreground text-sm">Cargando usuarios...</div>
+          ) : isErrorUsers ? (
+            <div className="p-6 text-center text-red-500 text-sm">Error al cargar usuarios.</div>
+          ) : adminUsers.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground text-sm">No hay usuarios registrados.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left px-4 py-2 font-medium">Nombre / Email</th>
+                  <th className="text-left px-4 py-2 font-medium">Rol</th>
+                  <th className="text-left px-4 py-2 font-medium">Método</th>
+                  <th className="text-left px-4 py-2 font-medium">Estado</th>
+                  <th className="text-right px-4 py-2 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminUsers.map((u: AdminUser) => (
+                  <tr key={u.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-2">
+                      <div className="font-medium leading-tight">
+                        {u.first_name || u.last_name
+                          ? (u.first_name + " " + u.last_name).trim()
+                          : u.email}
+                      </div>
+                      {(u.first_name || u.last_name) && (
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={"inline-flex items-center rounded px-2 py-0.5 text-xs font-medium " + (
+                        u.role === "administrador" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" :
+                        u.role === "gestor" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
+                        u.role === "desarrollador" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
+                        "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      )}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {u.has_google && (
+                        <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Google</span>
+                      )}
+                      {u.has_password && (
+                        <span className={"inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" + (u.has_google ? " ml-1" : "")}>Email</span>
+                      )}
+                      {!u.has_google && !u.has_password && (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {u.is_active ? (
+                        <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                          <UserCheck className="h-3 w-3" /> Activo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                          <Lock className="h-3 w-3" /> Bloqueado
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-end gap-2">
+                        {confirmDeactivateId === u.id ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Confirmar</span>
+                            <button
+                              type="button"
+                              onClick={() => { deactivateMutation.mutate(u.id); setConfirmDeactivateId(null); }}
+                              className="text-red-500 hover:text-red-700"
+                              aria-label="Confirmar bloqueo"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeactivateId(null)}
+                              className="text-muted-foreground hover:text-foreground"
+                              aria-label="Cancelar"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : u.is_active ? (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeactivateId(u.id)}
+                            className="text-muted-foreground hover:text-red-500 transition-colors"
+                            title="Bloquear usuario"
+                          >
+                            <UserX className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => activateMutation.mutate(u.id)}
+                            className="text-muted-foreground hover:text-green-600 transition-colors"
+                            title="Desbloquear usuario"
+                          >
+                            <UserCheck className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setPasswordModal({ userId: u.id, userName: (u.first_name || u.email) })}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Asignar contraseña"
+                        >
+                          <Lock className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+    </TabsContent>
+  </Tabs>
+
+  <Dialog open={passwordModal !== null} onOpenChange={(open) => { if (!open) { setPasswordModal(null); setNewPassword(""); setConfirmPassword(""); } }}>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Asignar Contraseña</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-3 py-2">
+        <p className="text-sm text-muted-foreground">
+          Usuario: <span className="font-medium text-foreground">{passwordModal?.userName}</span>
+        </p>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Nueva contraseña</label>
+          <Input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Mínimo 8 caracteres"
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Confirmar contraseña</label>
+          <Input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repetir contraseña"
+            autoComplete="new-password"
+          />
+        </div>
+        {newPassword && confirmPassword && newPassword !== confirmPassword && (
+          <p className="text-xs text-red-500">Las contraseñas no coinciden.</p>
+        )}
+        {newPassword && newPassword.length > 0 && newPassword.length < 8 && (
+          <p className="text-xs text-red-500">La contraseña debe tener al menos 8 caracteres.</p>
+        )}
+      </div>
+      <DialogFooter>
+        <button
+          type="button"
+          onClick={() => { setPasswordModal(null); setNewPassword(""); setConfirmPassword(""); }}
+          className="px-3 py-1.5 text-sm rounded-md border hover:bg-muted transition-colors"
+        >
+          Cancelar
+        </button>
+        <Button
+          onClick={handleSetPassword}
+          disabled={!newPassword || newPassword.length < 8 || newPassword !== confirmPassword || setPasswordMutation.isPending}
+          size="sm"
+        >
+          {setPasswordMutation.isPending ? "Guardando..." : "Guardar"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+</div>
   );
 }
