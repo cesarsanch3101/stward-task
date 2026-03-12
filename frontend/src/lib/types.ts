@@ -142,6 +142,8 @@ export interface TaskComment {
   author_email: string;
   content: string;
   source: "app" | "email";
+  attachment_filename: string | null;
+  attachment_size: number | null;
   created_at: string;
 }
 

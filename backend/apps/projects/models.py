@@ -373,6 +373,8 @@ class TaskComment(TimeStampedModel):
     )
     author_email = models.EmailField(blank=True, default="")
     content = models.TextField(max_length=10000)
+    attachment_filename = models.CharField(max_length=255, null=True, blank=True)
+    attachment_size = models.PositiveIntegerField(null=True, blank=True)
     source = models.CharField(
         max_length=10,
         choices=CommentSource.choices,

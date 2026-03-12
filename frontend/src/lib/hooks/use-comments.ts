@@ -27,3 +27,16 @@ export function useCreateComment(taskId: string) {
     },
   });
 }
+
+export function useCreateCommentWithFile(taskId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ content, file }: { content: string; file: File }) =>
+      api.createCommentWithFile(taskId, content, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: commentKeys.forTask(taskId) });
+      queryClient.invalidateQueries({ queryKey: notificationKeys.count });
+    },
+  });
+}

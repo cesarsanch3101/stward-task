@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useUpdateBoard, useDeleteBoard } from "@/lib/hooks/use-board";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import { boardSchema, type BoardFormData } from "@/lib/schemas";
 import type { BoardSummary } from "@/lib/types";
 
@@ -46,6 +47,9 @@ export function BoardMenu({ board }: Props) {
 
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const { data: currentUser } = useCurrentUser();
+  const canDelete = currentUser?.role === "administrador" || currentUser?.role === "gestor";
 
   const updateMutation = useUpdateBoard();
   const deleteMutation = useDeleteBoard();
@@ -93,14 +97,18 @@ export function BoardMenu({ board }: Props) {
             <Pencil className="h-4 w-4 mr-2" />
             Editar
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setDeleteOpen(true)}
-            className="text-red-600 focus:text-red-600"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Eliminar
-          </DropdownMenuItem>
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setDeleteOpen(true)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

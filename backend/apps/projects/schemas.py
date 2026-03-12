@@ -230,6 +230,8 @@ class TaskCommentSchema(Schema):
     author_email: str
     content: str
     source: str
+    attachment_filename: str | None = None
+    attachment_size: int | None = None
     created_at: datetime
 
 

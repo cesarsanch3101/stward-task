@@ -399,6 +399,43 @@ export function createComment(taskId: string, content: string) {
   });
 }
 
+// Multipart upload — do NOT set Content-Type (browser sets it with boundary)
+async function fetcherMultipart<T>(path: string, body: FormData): Promise<T> {
+  const doFetch = () =>
+    fetch(`${getApiBase()}${path}`, {
+      method: "POST",
+      cache: "no-store",
+      headers: { ...authHeaders() },
+      body,
+    });
+
+  let res = await doFetch();
+
+  if (res.status === 401 && typeof window !== "undefined") {
+    const refreshed = await handleTokenRefresh();
+    if (refreshed) {
+      res = await doFetch();
+      if (res.ok) return res.json();
+    }
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+  }
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`API ${res.status}: ${errorText}`);
+  }
+  return res.json();
+}
+
+export function createCommentWithFile(taskId: string, content: string, file: File) {
+  const formData = new FormData();
+  formData.append("content", content);
+  formData.append("file", file);
+  return fetcherMultipart<TaskComment>(`/tasks/${taskId}/comments/upload`, formData);
+}
+
 // ─── Notifications ──────────────────────────────
 export function getNotifications() {
   return fetcher<Notification[]>("/notifications");

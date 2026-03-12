@@ -37,6 +37,7 @@ import {
   useDeleteWorkspace,
 } from "@/lib/hooks/use-workspaces";
 import { useCreateBoard } from "@/lib/hooks/use-board";
+import { useCurrentUser } from "@/lib/hooks/use-auth";
 import { workspaceSchema, boardSchema, type WorkspaceFormData, type BoardFormData } from "@/lib/schemas";
 import type { Workspace } from "@/lib/types";
 
@@ -51,6 +52,9 @@ export function WorkspaceMenu({ workspace }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+
+  const { data: currentUser } = useCurrentUser();
+  const canDelete = currentUser?.role === "administrador" || currentUser?.role === "gestor";
 
   const updateMutation = useUpdateWorkspace();
   const deleteMutation = useDeleteWorkspace();
@@ -134,14 +138,18 @@ export function WorkspaceMenu({ workspace }: Props) {
             <Plus className="h-4 w-4 mr-2" />
             Nuevo tablero
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setDeleteOpen(true)}
-            className="text-red-600 focus:text-red-600"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Eliminar
-          </DropdownMenuItem>
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setDeleteOpen(true)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

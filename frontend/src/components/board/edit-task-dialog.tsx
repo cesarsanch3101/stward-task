@@ -42,7 +42,7 @@ import { CommentSection } from "./comment-section";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Pencil, Check, X, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Pencil, Check, X, Trash2, ChevronUp, ChevronDown, Search } from "lucide-react";
 import type { Task } from "@/lib/types";
 
 function getInitials(name: string) {
@@ -93,6 +93,9 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
   const [assignmentProgress, setAssignmentProgress] = useState<Record<string, number>>(() =>
     Object.fromEntries((task.assignments || []).map((a) => [a.user.id, a.individual_progress]))
   );
+
+  // Collaborator search
+  const [collaboratorSearch, setCollaboratorSearch] = useState("");
 
   // Subtask creation state
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
@@ -346,6 +349,16 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
               {/* Colaboradores */}
               <div className="flex flex-col gap-2">
                 <Label>Colaboradores</Label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    placeholder="Buscar colaborador..."
+                    value={collaboratorSearch}
+                    onChange={(e) => setCollaboratorSearch(e.target.value)}
+                    className="h-8 pl-7 text-xs"
+                    disabled={isReadOnly}
+                  />
+                </div>
                 <Controller
                   control={form.control}
                   name="assignee_ids"
@@ -353,7 +366,14 @@ export function EditTaskDialog({ task, boardId, open, onOpenChange }: Props) {
                     <div className="border rounded-md p-2 bg-muted/20">
                       <ScrollArea className="h-[120px]">
                         <div className="space-y-2 pr-4">
-                          {usersQuery.data?.map((member) => (
+                          {usersQuery.data
+                            ?.filter((member) => {
+                              const q = collaboratorSearch.toLowerCase();
+                              if (!q) return true;
+                              const name = `${member.first_name} ${member.last_name}`.toLowerCase();
+                              return name.includes(q) || member.email.toLowerCase().includes(q);
+                            })
+                            .map((member) => (
                             <div key={member.id} className="flex items-center gap-2">
                               <Checkbox
                                 id={`member-${member.id}`}

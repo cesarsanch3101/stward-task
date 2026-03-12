@@ -5,7 +5,8 @@ All endpoints require JWT authentication.
 
 from uuid import UUID
 
-from ninja import Router
+from ninja import File, Form, Router
+from ninja.files import UploadedFile
 from ninja.pagination import PageNumberPagination, paginate
 
 from apps.accounts.auth import jwt_auth
@@ -127,6 +128,10 @@ def update_board(request, board_id: UUID, payload: BoardUpdateSchema):
 
 @router.delete("/boards/{board_id}", response={204: None}, tags=["boards"])
 def delete_board(request, board_id: UUID):
+    from apps.accounts.models import User as UserModel
+    from ninja.errors import HttpError
+    if request.auth.role == UserModel.UserRole.STAFF:
+        raise HttpError(403, "Los desarrolladores no pueden eliminar tableros.")
     board = BoardService.get_or_404(board_id, request.auth)
     BoardService.delete(board, user=request.auth)
     return 204, None
@@ -185,6 +190,10 @@ def update_task(request, task_id: UUID, payload: TaskUpdateSchema):
 
 @router.delete("/tasks/{task_id}", response={204: None}, tags=["tasks"])
 def delete_task(request, task_id: UUID):
+    from apps.accounts.models import User as UserModel
+    from ninja.errors import HttpError
+    if request.auth.role == UserModel.UserRole.STAFF:
+        raise HttpError(403, "Los desarrolladores no pueden eliminar tareas.")
     task = TaskService.get_or_404(task_id, request.auth)
     TaskService.delete(task, user=request.auth)
     return 204, None
@@ -222,6 +231,27 @@ def list_comments(request, task_id: UUID):
 def create_comment(request, task_id: UUID, payload: TaskCommentCreateSchema):
     task = TaskService.get_or_404(task_id, request.auth)
     return 201, CommentService.create(request.auth, task, payload.content)
+
+
+_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+@router.post(
+    "/tasks/{task_id}/comments/upload",
+    response={201: TaskCommentSchema},
+    tags=["comments"],
+)
+def create_comment_with_file(
+    request,
+    task_id: UUID,
+    content: str = Form(...),
+    file: UploadedFile = File(None),
+):
+    if file and file.size > _MAX_ATTACHMENT_BYTES:
+        from ninja.errors import HttpError
+        raise HttpError(400, "El archivo no puede superar los 10 MB.")
+    task = TaskService.get_or_404(task_id, request.auth)
+    return 201, CommentService.create_with_file(request.auth, task, content, file=file)
 
 
 # ─────────────────────────────────────────────────

@@ -535,7 +535,48 @@ class CommentService:
         return comment
 
     @staticmethod
-    def _send_comment_email(comment: TaskComment, commenter: User):
+    def create_with_file(user: User, task: Task, content: str, file=None) -> TaskComment:
+        """Create a comment with an optional file attachment sent via email."""
+        file_data = None
+        file_name = None
+        file_size = None
+        file_content_type = None
+
+        if file is not None:
+            file_data = file.read()
+            file_name = file.name
+            file_size = len(file_data)
+            file_content_type = getattr(file, "content_type", "application/octet-stream")
+
+        comment = TaskComment.objects.create(
+            task=task,
+            author=user,
+            author_email=user.email,
+            content=content,
+            source=CommentSource.APP,
+            attachment_filename=file_name,
+            attachment_size=file_size,
+        )
+        NotificationService.create_for_comment(comment, user)
+        try:
+            CommentService._send_comment_email(
+                comment, user,
+                file_data=file_data,
+                file_name=file_name,
+                file_content_type=file_content_type,
+            )
+        except Exception:
+            logger.warning("Could not send comment email with file for task %s", task.id)
+        return comment
+
+    @staticmethod
+    def _send_comment_email(
+        comment: TaskComment,
+        commenter: User,
+        file_data: bytes | None = None,
+        file_name: str | None = None,
+        file_content_type: str | None = None,
+    ):
         from django.core.mail import EmailMultiAlternatives
         from django.conf import settings
 
@@ -580,6 +621,8 @@ class CommentService:
                 to=[recipient],
                 reply_to=[reply_to] if reply_to else [],
             )
+            if file_data and file_name:
+                msg.attach(file_name, file_data, file_content_type or "application/octet-stream")
             msg.send(fail_silently=True)
 
     @staticmethod

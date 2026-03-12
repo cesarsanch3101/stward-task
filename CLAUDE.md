@@ -100,10 +100,13 @@ gcloud run services logs read stward-backend --region us-central1 --project stwa
 gcloud run services logs read stward-frontend --region us-central1 --project stward-task-1cbf3 --limit 50
 ```
 
-### Estado del deploy (2026-03-11)
-- ✅ Frontend SSR en Cloud Run (`stward-frontend` rev `00011-ctb`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
-- ✅ Backend en Cloud Run (`stward-backend` rev `00041-wlh`), ✅ Neon DB conectada
+### Estado del deploy (2026-03-12)
+- ✅ Frontend SSR en Cloud Run (`stward-frontend` rev `00027-ntd`), Firebase Hosting proxia con `"run": { "serviceId": "stward-frontend" }`
+- ✅ Backend en Cloud Run (`stward-backend` rev `00043-jdw`), ✅ Neon DB conectada
 - ✅ Login funcionando — admin@stwards.com / admin123
+- ✅ Sprint 18: Buscador de colaboradores en EditTaskDialog (filtra por nombre/email)
+- ✅ Sprint 17: Eliminar tareas/tableros deshabilitado para rol Desarrollador (frontend + backend 403)
+- ✅ Sprint 16: Adjuntos en comentarios — botón 📎, email con archivo adjunto, chip de evidencia en historial
 - ✅ Sprint 15 desplegado: Tab "Usuarios" en Control de Acceso (bloquear/desbloquear + asignar contraseña)
 - ✅ Sprint 15b: Email asignación HTML (fecha límite + link app) + fix URL `/boards/` → `/board/`
 - ✅ Sprint 15c: Filtro colaboradores `@stwards.com` + propagación email en respuesta inbound + bug fix template location
@@ -300,6 +303,45 @@ Agregar una segunda pestaña "Usuarios" en el módulo Control de Acceso (`/admin
 
 ---
 
+## Sprint 16 — COMPLETADO: Adjuntos en Comentarios (Opción A — temporal vía email)
+
+### Objetivo
+Permitir que los usuarios adjunten archivos (evidencias de avance) a sus comentarios. El archivo se envía por correo a todos los participantes de la tarea pero **no se almacena en la app** — solo se guardan metadatos (nombre y tamaño) para mostrar evidencia visual en el historial de comentarios.
+
+### Cambios realizados
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/apps/projects/models.py` | `TaskComment` + `attachment_filename` (CharField nullable) + `attachment_size` (PositiveIntegerField nullable) |
+| `backend/apps/projects/migrations/0010_taskcomment_attachment.py` | Migración nueva |
+| `backend/apps/projects/schemas.py` | `TaskCommentSchema` expone `attachment_filename` y `attachment_size` |
+| `backend/apps/projects/services.py` | `CommentService.create_with_file()` + `_send_comment_email()` acepta `file_data/file_name/file_content_type` opcionales |
+| `backend/apps/projects/api.py` | `POST /tasks/{id}/comments/upload` multipart/form-data, límite 10 MB; importa `File`, `Form`, `UploadedFile` de ninja |
+| `frontend/src/lib/types.ts` | `TaskComment` + `attachment_filename`, `attachment_size` |
+| `frontend/src/lib/api.ts` | `fetcherMultipart()` (sin Content-Type fijo) + `createCommentWithFile()` con FormData |
+| `frontend/src/lib/hooks/use-comments.ts` | `useCreateCommentWithFile()` mutation |
+| `frontend/src/components/board/comment-section.tsx` | Botón 📎, chip de archivo seleccionado, chip "enviado por correo" en historial |
+
+### Flujo
+```
+Usuario escribe comentario + selecciona archivo (máx 10 MB)
+→ POST /tasks/{id}/comments/upload (multipart)
+→ Django lee archivo en memoria → adjunta a EmailMultiAlternatives → descarta
+→ Guarda TaskComment con attachment_filename + attachment_size
+→ App muestra chip 📎 con nombre, tamaño y "enviado por correo"
+→ Destinatarios reciben el archivo real en su bandeja de correo
+```
+
+### Tipos de archivo aceptados
+`image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip, .txt`
+
+### Revisiones Cloud Run
+- Backend: `00042-d4q`
+- Frontend: `00025-rjq`
+- Migración `0010_taskcomment_attachment` corrida en Neon DB
+
+---
+
 ## Email Configuration (ACTIVO)
 - **Proveedor outbound:** Google Workspace SMTP — `screen@stwards.com` autentica, `noreply@stwards.com` es alias
 - **Envío:** `smtp.gmail.com:587` con App Password (16 chars) de `screen@stwards.com`
@@ -344,6 +386,9 @@ Agregar una segunda pestaña "Usuarios" en el módulo Control de Acceso (`/admin
 | Sprint 15 | Gestión de Usuarios: Desbloquear/Bloquear + Asignar Contraseña en Control de Acceso | ✅ COMPLETADO |
 | Sprint 15b | Email asignación HTML (fecha límite + link app) + fix URL `/boards/` → `/board/` | ✅ COMPLETADO |
 | Sprint 15c | Filtro colaboradores `@stwards.com` + propagación email inbound + precreación 109 usuarios | ✅ COMPLETADO |
+| Sprint 16 | Adjuntos en comentarios: archivo enviado por correo, metadatos en app (📎 chip) | ✅ COMPLETADO |
+| Sprint 17 | Deshabilitar eliminar tareas/tableros para rol Desarrollador (frontend + backend 403) | ✅ COMPLETADO |
+| Sprint 18 | Buscador de colaboradores en EditTaskDialog (filtra por nombre/email, ícono lupa) | ✅ COMPLETADO |
 
 ### Features implementados (resumen)
 - **Auth:** JWT stateless (access 30min + refresh 7d), register, login, /me
@@ -458,6 +503,8 @@ Agregar una segunda pestaña "Usuarios" en el módulo Control de Acceso (`/admin
 - **Precreación masiva de usuarios**: `python manage.py precreate_allowlist_users` — crea cuentas `User` para todas las entradas pendientes (`used_at__isnull=True`) de `AllowedEmail`. Ran en producción vía Cloud Run job: 109 usuarios creados.
 - **Gestión de usuarios Admin (Sprint 15)**: endpoints `GET /auth/admin/users`, `PATCH /auth/admin/users/{id}/activate|deactivate`, `POST /auth/admin/users/{id}/set-password`. `AdminUserSchema` expone `has_password = user.has_usable_password()`, `has_google = user.google_id is not None`. Admin no puede desactivar su propia cuenta.
 - **`(auth)` path Write tool bug**: VSCode extension no persiste archivos escritos con Write tool a rutas con `(auth)` en el path. Workaround: escribir script Python temporal a ruta normal, ejecutar, eliminar.
+- **Adjuntos comentarios (Sprint 16)**: `POST /tasks/{id}/comments/upload` acepta `multipart/form-data` con `content` (Form) y `file` (File, opcional). Límite 10 MB validado en endpoint (`file.size`). Backend lee archivo en memoria → adjunta a `EmailMultiAlternatives.attach()` → descarta. Solo persiste `attachment_filename` + `attachment_size` en DB. Frontend usa `fetcherMultipart()` (sin `Content-Type` header — browser lo pone con boundary). `useCreateCommentWithFile` acepta `{ content, file }`.
+- **`fetcherMultipart` sin Content-Type (CRÍTICO)**: Al usar `FormData`, NO se debe setear `Content-Type: application/json` — el browser lo establece automáticamente como `multipart/form-data; boundary=...`. Si se fuerza `application/json`, el servidor no puede parsear el multipart.
 
 ### Regla de documentación (OBLIGATORIA)
 > Cada vez que se agregue una funcionalidad nueva, se deben actualizar:
