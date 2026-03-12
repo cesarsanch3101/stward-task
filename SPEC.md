@@ -715,6 +715,57 @@ Restringir el selector de colaboradores a usuarios `@stwards.com`. Propagar noti
 
 ---
 
-> **✅ Sprints 0-13 completados y validados. Aplicación en producción (Firebase + Cloud Run + Neon) con Google OAuth2 SSO, allowlist con nombres pre-registrados, identificación de colaboradores con email visible, sistema colaborativo, notificaciones, emails síncronos, visibilidad por rol (gestor = igual que colaboradores), auto-gestión de tareas vencidas, progreso automático por subtareas y sidebar colapsable con UX mejorada.**
+---
+
+## Sprint 16 — COMPLETADO: Adjuntos en Comentarios
+
+### Objetivo
+Permitir que los usuarios adjunten archivos (evidencias de avance) a sus comentarios. El archivo se envía por correo a todos los participantes pero no se almacena en la app — solo se guardan metadatos (nombre y tamaño) para mostrar evidencia visual en el historial.
+
+### Tareas
+
+| Tarea | Estado |
+|-------|--------|
+| `models.py`: `TaskComment` + `attachment_filename` + `attachment_size` | ✅ |
+| Migración `0010_taskcomment_attachment` | ✅ |
+| `schemas.py`: `TaskCommentSchema` expone `attachment_filename`, `attachment_size` | ✅ |
+| `services.py`: `CommentService.create_with_file()` + `_send_comment_email()` acepta adjunto opcional | ✅ |
+| `api.py`: `POST /tasks/{id}/comments/upload` multipart/form-data, límite 10 MB | ✅ |
+| `frontend/api.ts`: `fetcherMultipart()` + `createCommentWithFile()` | ✅ |
+| `use-comments.ts`: `useCreateCommentWithFile()` mutation | ✅ |
+| `comment-section.tsx`: botón 📎 + chip archivo seleccionado + chip "enviado por correo" en historial | ✅ |
+
+---
+
+## Sprint 17 — COMPLETADO: Restricción Eliminar para Desarrollador
+
+### Objetivo
+Deshabilitar la posibilidad de que el rol Desarrollador elimine tareas o tableros. Protección tanto en frontend (botones ocultos) como en backend (HTTP 403).
+
+### Tareas
+
+| Tarea | Estado |
+|-------|--------|
+| `api.py`: `DELETE /boards/{id}` devuelve 403 si `user.role == "desarrollador"` | ✅ |
+| `api.py`: `DELETE /tasks/{id}` devuelve 403 si `user.role == "desarrollador"` | ✅ |
+| Frontend: botón eliminar tarea/tablero oculto para rol Desarrollador | ✅ |
+
+---
+
+## Sprint 18 — COMPLETADO: Buscador de Colaboradores en EditTaskDialog
+
+### Objetivo
+Agregar un campo de búsqueda en el selector de colaboradores del diálogo de edición de tareas, para filtrar por nombre o email cuando la lista es larga.
+
+### Tareas
+
+| Tarea | Estado |
+|-------|--------|
+| `edit-task-dialog.tsx`: estado `collaboratorSearch` + input con ícono lupa | ✅ |
+| Filtro en tiempo real por `first_name`, `last_name`, `email` (case-insensitive) | ✅ |
+
+---
+
+> **✅ Sprints 0-18 completados y validados. Aplicación en producción (Firebase + Cloud Run + Neon) con Google OAuth2 SSO, sistema colaborativo completo, emails HTML, adjuntos en comentarios, permisos granulares por rol, buscador de colaboradores y pre-creación masiva de usuarios.**
 >
 > **Regla de documentación:** Cada feature nueva debe actualizar CLAUDE.md (Estado Actual) + SPEC.md (sprint) + MANUAL.md (usuario).
