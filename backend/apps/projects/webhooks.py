@@ -34,13 +34,17 @@ def inbound_email(request):
         "reply_plain": "reply text stripped of quoted content"
       }
     """
-    # Verify token from URL query param (?token=...) or fallback header
+    # Verify webhook secret — REQUIRED, no bypass allowed
     secret = getattr(settings, "INBOUND_EMAIL_SECRET", "")
-    if secret:
-        token = request.GET.get("token", "") or request.headers.get("X-Webhook-Secret", "")
-        if not hmac.compare_digest(token, secret):
-            logger.warning("Inbound email: invalid webhook token")
-            return {"status": "error", "reason": "unauthorized"}
+    if not secret:
+        logger.error("Inbound email: INBOUND_EMAIL_SECRET not configured — rejecting request")
+        return {"status": "error", "reason": "unauthorized"}
+
+    # Accept secret via header only (preferred) or query param (legacy fallback)
+    token = request.headers.get("X-Webhook-Secret", "") or request.GET.get("token", "")
+    if not hmac.compare_digest(token, secret):
+        logger.warning("Inbound email: invalid webhook token from %s", request.META.get("REMOTE_ADDR", "unknown"))
+        return {"status": "error", "reason": "unauthorized"}
 
     # Parse JSON body
     try:

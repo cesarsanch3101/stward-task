@@ -70,7 +70,7 @@
 | `EMAIL_HOST_PASSWORD` | (App Password Google Workspace) |
 | `DEFAULT_FROM_EMAIL` | `Stward Task <noreply@stwards.com>` |
 | `INBOUND_EMAIL_ADDRESS` | `cca91010c6927746fa43@cloudmailin.net` |
-| `INBOUND_EMAIL_SECRET` | `stward-inbound-2026-xk9p` |
+| `INBOUND_EMAIL_SECRET` | (ver MEMORY.md — rotado 2026-03-17) |
 
 ### Comandos clave de deploy
 ```bash
