@@ -58,14 +58,14 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
   const days = overdue ? daysOverdue(task) : 0;
 
   return (
-    <>
+    <div style={{ isolation: "isolate" }}>
       <Card
         ref={isOverlay ? undefined : setNodeRef}
         style={isOverlay ? undefined : style}
         {...(isOverlay ? {} : attributes)}
         {...(isOverlay ? {} : listeners)}
-        className={`${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"} border shadow-none hover:border-primary/50 transition-colors overflow-hidden ${
-          overdue ? "border-red-500/50 bg-red-50/30 dark:bg-red-950/20" : "bg-card"
+        className={`${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"} rounded-2xl border shadow-none transition-all overflow-hidden hover:border-indigo-500/40 hover:shadow-[0_4px_20px_rgba(99,102,241,0.15)] dark:glass-card dark:hover:bg-white/[0.09] ${
+          overdue ? "border-red-500/50 bg-red-50/30 dark:bg-red-500/[0.08] dark:border-red-500/30" : "bg-card"
         }`}
         tabIndex={0}
         onClick={(e) => {
@@ -161,7 +161,7 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
                     ))
                   ) : (
                     <div
-                      className="h-full bg-primary/60 rounded-[1px] transition-all duration-500"
+                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-400 transition-all duration-500"
                       style={{ width: `${task.progress}%` }}
                     />
                   )}
@@ -183,6 +183,6 @@ export const TaskCard = memo(function TaskCard({ task, boardId, isOverlay }: Pro
           onOpenChange={setEditOpen}
         />
       )}
-    </>
+    </div>
   );
 });
