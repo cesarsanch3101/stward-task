@@ -15,6 +15,12 @@ function ThemedToaster() {
       theme={(resolvedTheme as "light" | "dark") ?? "light"}
       toastOptions={{
         duration: 4000,
+        classNames: {
+          toast: "dark:!bg-[#1a1030] dark:!border-white/10 dark:!text-white dark:!rounded-2xl",
+          description: "dark:!text-white/60",
+          actionButton: "dark:!bg-indigo-500/20 dark:!text-indigo-300",
+          cancelButton: "dark:!bg-white/10 dark:!text-white/60",
+        },
       }}
     />
   );
