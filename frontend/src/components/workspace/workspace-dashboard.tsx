@@ -11,9 +11,9 @@ import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Clock, AlertCircle, Users, AlertTriangle, LayoutDashboard, FileDown, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { STATUS_BG } from "@/lib/status-colors";
+import { STATUS_BG, STATUS_CHART_COLOR } from "@/lib/status-colors";
 import { exportTasksCSV } from "@/lib/export-utils";
-import type { Board, Task } from "@/lib/types";
+import type { Board, Task, ColumnStatus } from "@/lib/types";
 import Link from "next/link";
 
 interface Props {
@@ -48,7 +48,7 @@ export function WorkspaceDashboard({ boards, allTasks, isLoading }: Props) {
         : 0;
 
     // Status distribution (aggregate by col.status across all boards)
-    const statusCounts: Record<string, { name: string; value: number; color: string }> = {};
+    const statusCounts: Record<string, { name: string; value: number; color: string; status: ColumnStatus }> = {};
     const STATUS_LABELS: Record<string, string> = {
       pending: "Pendiente", in_progress: "En Progreso",
       delayed: "Retrasado", completed: "Completado", custom: "Personalizado",
@@ -61,7 +61,8 @@ export function WorkspaceDashboard({ boards, allTasks, isLoading }: Props) {
           statusCounts[col.status] = {
             name: STATUS_LABELS[col.status] ?? col.name,
             value: 0,
-            color: STATUS_BG[col.status] ?? STATUS_BG.pending,
+            color: STATUS_BG[col.status as ColumnStatus] ?? STATUS_BG.pending,
+            status: col.status as ColumnStatus,
           };
         }
         statusCounts[col.status].value += count;
@@ -233,7 +234,7 @@ export function WorkspaceDashboard({ boards, allTasks, isLoading }: Props) {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={stats.statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-                    {stats.statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    {stats.statusData.map((entry, i) => <Cell key={i} fill={STATUS_CHART_COLOR[(entry as { status: ColumnStatus }).status] ?? "#6366f1"} />)}
                   </Pie>
                   <Tooltip />
                 </PieChart>
@@ -271,7 +272,7 @@ export function WorkspaceDashboard({ boards, allTasks, isLoading }: Props) {
                 <XAxis dataKey="name" fontSize={10} fontWeight="bold" />
                 <YAxis fontSize={10} />
                 <Tooltip cursor={{ fill: "#f8fafc" }} />
-                <Bar dataKey="value" fill="#0073ea" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -361,13 +362,13 @@ interface KPICardProps {
 }
 function KPICard({ title, value, icon, description, progress, alert }: KPICardProps) {
   return (
-    <Card className={cn("shadow-none border transition-colors", alert ? "border-orange-300 dark:border-orange-800" : "border-border/50 hover:border-primary/30")}>
+    <Card className={cn("shadow-none border transition-colors rounded-2xl dark:glass-card dark:border-white/10", alert ? "border-orange-300 dark:border-orange-800" : "border-border/50 hover:border-primary/30")}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</CardTitle>
         {icon}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold dark:bg-gradient-to-r dark:from-indigo-400 dark:to-violet-300 dark:bg-clip-text dark:text-transparent">{value}</div>
         {description && (
           <p className={cn("text-[11px] mt-1", alert ? "text-orange-600 dark:text-orange-400 font-medium" : "text-muted-foreground")}>
             {alert && <AlertTriangle className="h-3 w-3 inline mr-1" />}{description}
