@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TaskCard } from "./task-card";
 import { CreateTaskDialog } from "./create-task-dialog";
-import { STATUS_BG, STATUS_DOT } from "@/lib/status-colors";
+import { STATUS_DOT } from "@/lib/status-colors";
 import type { Column } from "@/lib/types";
 
 interface Props {
