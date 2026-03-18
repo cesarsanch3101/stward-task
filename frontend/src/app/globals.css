@@ -18,7 +18,7 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 210 100% 46%; /* Monday Blue #0073ea */
+    --primary: 239 84% 67%; /* Indigo #6366f1 */
     --primary-foreground: 210 40% 98%;
     --secondary: 214 32% 91%;
     --secondary-foreground: 222 47% 11%;
@@ -31,7 +31,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
-    --radius: 0.25rem;
+    --radius: 0.625rem;
 
     /* Monday.com Specific Colors */
     --monday-done: 142 69% 45%;    /* Green #33d391 */
@@ -39,28 +39,28 @@
     --monday-working-bright: 38 92% 50%;
     --monday-stuck: 354 70% 54%;  /* Red #e2445c */
     --monday-waiting: 199 89% 48%; /* Blue #00a9ff */
-    --monday-sidebar: 217 33% 17%; /* Dark Blue #292f4c */
+    --monday-sidebar: 231 57% 6%; /* Dark Indigo #080b1a */
   }
   .dark {
-    --background: 222 47% 11%;
+    --background: 229 41% 8%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
+    --card: 229 41% 8%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
+    --popover: 229 35% 10%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 100% 46%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 239 30% 18%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 239 30% 18%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 239 30% 18%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 239 30% 20%;
+    --input: 239 30% 18%;
+    --ring: 239 84% 67%;
   }
 }
 
@@ -72,6 +72,23 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ── Dark Glass Premium ── */
+.dark body {
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%) fixed;
+}
+
+@layer utilities {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .glass-card-hover:hover {
+    background: rgba(255, 255, 255, 0.10);
   }
 }
 
