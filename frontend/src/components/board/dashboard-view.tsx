@@ -19,9 +19,9 @@ import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Clock, AlertCircle, Users, AlertTriangle, FileDown, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { STATUS_BG, STATUS_CHART_COLOR } from "@/lib/status-colors";
+import { STATUS_BG } from "@/lib/status-colors";
 import { exportTasksCSV } from "@/lib/export-utils";
-import type { Board, ColumnStatus } from "@/lib/types";
+import type { Board } from "@/lib/types";
 
 interface Props {
     board: Board;
@@ -65,7 +65,6 @@ export function DashboardView({ board }: Props) {
         const statusData = board.columns
             .map((col) => ({
                 name: col.name,
-                status: col.status,
                 value: (col.tasks || []).length,
                 color: STATUS_BG[col.status] ?? STATUS_BG.pending,
             }))
@@ -147,9 +146,6 @@ export function DashboardView({ board }: Props) {
         return { total, completed, delayed, avgProgress, statusData, priorityData, teamWorkload, statusCounts };
     }, [allTasks, board.columns]);
 
-    const getChartColor = (status: string) =>
-        STATUS_CHART_COLOR[status as ColumnStatus] ?? "#6366f1";
-
     return (
         <div className="flex-1 overflow-auto bg-slate-50/50 p-6 space-y-6">
 
@@ -229,8 +225,8 @@ export function DashboardView({ board }: Props) {
                                         paddingAngle={5}
                                         dataKey="value"
                                     >
-                                        {stats.statusData.map((entry: { name: string; status: string; value: number; color: string }, i: number) => (
-                                            <Cell key={`cell-${i}`} fill={getChartColor(entry.status)} />
+                                        {stats.statusData.map((entry: { name: string; value: number; color: string }, i: number) => (
+                                            <Cell key={i} fill={entry.color} />
                                         ))}
                                     </Pie>
                                     <Tooltip />
@@ -270,7 +266,7 @@ export function DashboardView({ board }: Props) {
                                 <XAxis dataKey="name" fontSize={10} fontWeight="bold" />
                                 <YAxis fontSize={10} />
                                 <Tooltip cursor={{ fill: "#f8fafc" }} />
-                                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="value" fill="#0073ea" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
@@ -448,7 +444,7 @@ function KPICard({ title, value, icon, description, progress, alert }: KPICardPr
     return (
         <Card
             className={cn(
-                "shadow-none border rounded-2xl transition-colors dark:glass-card dark:border-white/10",
+                "shadow-none border transition-colors",
                 alert ? "border-orange-300 dark:border-orange-800" : "border-border/50 hover:border-primary/30"
             )}
         >
@@ -459,7 +455,7 @@ function KPICard({ title, value, icon, description, progress, alert }: KPICardPr
                 {icon}
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold dark:bg-gradient-to-r dark:from-indigo-400 dark:to-violet-300 dark:bg-clip-text dark:text-transparent">{value}</div>
+                <div className="text-2xl font-bold">{value}</div>
                 {description && (
                     <p
                         className={cn(

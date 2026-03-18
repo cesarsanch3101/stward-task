@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import dynamic from "next/dynamic";
 
 const GoogleAuthButton = dynamic(
@@ -55,164 +56,140 @@ export default function LoginPage() {
     : loginForm.formState.errors;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-3xl bg-white/[0.07] backdrop-blur-xl border border-white/[0.12] shadow-[0_25px_50px_rgba(0,0,0,0.5)] p-8">
-
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-2 mb-8">
-          <Image
-            src="/logo-stward.png"
-            alt="Stward Corporation"
-            width={180}
-            height={48}
-            className="invert brightness-200"
-            priority
-          />
-          <p className="text-white/40 text-xs tracking-widest uppercase">
-            Gestión de proyectos
-          </p>
-        </div>
-
-        {/* Title */}
-        <h1 className="text-white text-2xl font-bold text-center mb-6">
-          {isRegister ? "Crear cuenta" : "Iniciar sesión"}
-        </h1>
-
-        <form
-          onSubmit={
-            isRegister
-              ? registerForm.handleSubmit(handleRegisterSubmit)
-              : loginForm.handleSubmit(handleLoginSubmit)
-          }
-          className="space-y-4"
-        >
-          {isRegister && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="firstName"
-                  className="text-xs font-semibold uppercase tracking-widest text-white/50"
-                >
-                  Nombre
-                </Label>
-                <Input
-                  id="firstName"
-                  {...registerForm.register("first_name")}
-                  placeholder="Juan"
-                  autoComplete="given-name"
-                  className="bg-white/[0.06] border-white/10 text-white placeholder:text-white/30 focus:border-indigo-400/50 focus:ring-indigo-400/20 rounded-xl"
-                />
+    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <Image
+              src="/logo-stward.png"
+              alt="Stward Corporation"
+              width={180}
+              height={48}
+              priority
+              className="dark:invert"
+            />
+          </div>
+          <div>
+            <CardTitle className="text-2xl font-bold">
+              {isRegister ? "Crear cuenta" : "Iniciar sesión"}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Stward Task — Gestión de proyectos
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={
+              isRegister
+                ? registerForm.handleSubmit(handleRegisterSubmit)
+                : loginForm.handleSubmit(handleLoginSubmit)
+            }
+            className="space-y-4"
+          >
+            {isRegister && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Nombre</Label>
+                  <Input
+                    id="firstName"
+                    {...registerForm.register("first_name")}
+                    placeholder="Juan"
+                    autoComplete="given-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Apellido</Label>
+                  <Input
+                    id="lastName"
+                    {...registerForm.register("last_name")}
+                    placeholder="Pérez"
+                    autoComplete="family-name"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="lastName"
-                  className="text-xs font-semibold uppercase tracking-widest text-white/50"
-                >
-                  Apellido
-                </Label>
-                <Input
-                  id="lastName"
-                  {...registerForm.register("last_name")}
-                  placeholder="Pérez"
-                  autoComplete="family-name"
-                  className="bg-white/[0.06] border-white/10 text-white placeholder:text-white/30 focus:border-indigo-400/50 focus:ring-indigo-400/20 rounded-xl"
-                />
-              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                {...(isRegister
+                  ? registerForm.register("email")
+                  : loginForm.register("email"))}
+                placeholder="correo@ejemplo.com"
+                autoComplete="email"
+                autoFocus
+              />
+              {activeErrors.email && (
+                <p className="text-xs text-red-500">
+                  {activeErrors.email.message}
+                </p>
+              )}
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="email"
-              className="text-xs font-semibold uppercase tracking-widest text-white/50"
-            >
-              Correo electrónico
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              {...(isRegister
-                ? registerForm.register("email")
-                : loginForm.register("email"))}
-              placeholder="correo@ejemplo.com"
-              autoComplete="email"
-              autoFocus
-              className="bg-white/[0.06] border-white/10 text-white placeholder:text-white/30 focus:border-indigo-400/50 focus:ring-indigo-400/20 rounded-xl"
-            />
-            {activeErrors.email && (
-              <p className="text-xs text-red-400">
-                {activeErrors.email.message}
-              </p>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                {...(isRegister
+                  ? registerForm.register("password")
+                  : loginForm.register("password"))}
+                placeholder="Mínimo 8 caracteres"
+                autoComplete={isRegister ? "new-password" : "current-password"}
+              />
+              {activeErrors.password && (
+                <p className="text-xs text-red-500">
+                  {activeErrors.password.message}
+                </p>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending
+                ? "Cargando..."
+                : isRegister
+                  ? "Crear cuenta"
+                  : "Iniciar sesión"}
+            </Button>
+          </form>
+
+          {/* Separador */}
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs text-muted-foreground">
+              <span className="bg-card px-2">o continúa con</span>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="password"
-              className="text-xs font-semibold uppercase tracking-widest text-white/50"
-            >
-              Contraseña
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              {...(isRegister
-                ? registerForm.register("password")
-                : loginForm.register("password"))}
-              placeholder="Mínimo 8 caracteres"
-              autoComplete={isRegister ? "new-password" : "current-password"}
-              className="bg-white/[0.06] border-white/10 text-white placeholder:text-white/30 focus:border-indigo-400/50 focus:ring-indigo-400/20 rounded-xl"
+          {/* Botón Google */}
+          <div className="flex justify-center">
+            <GoogleAuthButton
+              onSuccess={(credential) => googleAuthMutation.mutate(credential)}
             />
-            {activeErrors.password && (
-              <p className="text-xs text-red-400">
-                {activeErrors.password.message}
-              </p>
-            )}
           </div>
 
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-[0_4px_20px_rgba(99,102,241,0.4)] text-white font-semibold rounded-xl transition-all"
-          >
-            {isPending
-              ? "Cargando..."
-              : isRegister
-                ? "Crear cuenta"
-                : "Iniciar sesión"}
-          </Button>
-        </form>
-
-        {/* Separador */}
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-white/30 text-xs">o continúa con</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
-
-        {/* Botón Google */}
-        <div className="flex justify-center">
-          <GoogleAuthButton
-            onSuccess={(credential) => googleAuthMutation.mutate(credential)}
-          />
-        </div>
-
-        <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegister(!isRegister);
-              loginForm.reset();
-              registerForm.reset();
-            }}
-            className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-          >
-            {isRegister
-              ? "¿Ya tienes cuenta? Inicia sesión"
-              : "¿No tienes cuenta? Regístrate"}
-          </button>
-        </div>
-      </div>
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegister(!isRegister);
+                loginForm.reset();
+                registerForm.reset();
+              }}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {isRegister
+                ? "¿Ya tienes cuenta? Inicia sesión"
+                : "¿No tienes cuenta? Regístrate"}
+            </button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

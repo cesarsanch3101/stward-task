@@ -15,10 +15,7 @@ interface Props {
 
 type ZoomLevel = "days" | "weeks" | "months" | "fit";
 
-const BOARD_COLORS = [
-  "#6366f1", "#8b5cf6", "#10b981", "#f59e0b",
-  "#3b82f6", "#ec4899", "#14b8a6", "#f97316"
-];
+const BOARD_COLORS = ["#0073ea","#00c875","#e2445c","#fdab3d","#9d50dd","#579bfc","#037f4c","#bb3354"];
 
 export function WorkspaceGantt({ boards, isLoading }: Props) {
   const [zoom, setZoom] = useState<ZoomLevel>("fit");
