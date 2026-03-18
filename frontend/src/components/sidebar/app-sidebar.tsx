@@ -107,10 +107,9 @@ export function AppSidebar() {
                             href={`/workspace/${ws.id}`}
                             className={[
                               "flex items-center gap-2 flex-1 min-w-0 rounded-lg px-3 py-2 border transition-all duration-150",
-                              "bg-gradient-to-b shadow-[0_2px_5px_rgba(0,0,0,0.35)]",
                               isWsActive
-                                ? "from-white/30 to-white/15 border-t-white/50 border-white/25 shadow-[0_4px_12px_rgba(0,0,0,0.45)]"
-                                : "from-white/20 to-white/[0.07] border-t-white/35 border-white/15 hover:from-white/25 hover:to-white/10 hover:border-t-white/45 hover:border-white/20 hover:shadow-[0_4px_10px_rgba(0,0,0,0.4)]",
+                                ? "bg-indigo-500/20 border-indigo-400/20 text-white"
+                                : "border-transparent hover:bg-indigo-500/10 hover:text-white",
                             ].join(" ")}
                           >
                             <LayoutGrid className="h-3.5 w-3.5 text-white/60 shrink-0" />
@@ -137,8 +136,8 @@ export function AppSidebar() {
                                 className={[
                                   "group flex items-center rounded transition-colors",
                                   isActive
-                                    ? "bg-white/20 text-white"
-                                    : "text-white/70 hover:bg-white/10 hover:text-white",
+                                    ? "bg-indigo-500/15 text-white"
+                                    : "text-white/70 hover:bg-indigo-500/10 hover:text-white",
                                 ].join(" ")}
                               >
                                 <Link
@@ -191,8 +190,8 @@ export function AppSidebar() {
                 className={[
                   "flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors",
                   pathname === "/admin/users"
-                    ? "bg-white/20 text-white"
-                    : "text-white/70 hover:bg-white/10 hover:text-white",
+                    ? "bg-indigo-500/15 text-white"
+                    : "text-white/70 hover:bg-indigo-500/10 hover:text-white",
                 ].join(" ")}
               >
                 <Shield className="h-3.5 w-3.5 shrink-0" />
